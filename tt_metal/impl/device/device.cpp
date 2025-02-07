@@ -363,6 +363,11 @@ void Device::initialize_device_kernel_defines()
     //  because Blackhole PCIe endpoint is dependent on board type
     const metal_SocDescriptor& soc_d = tt::Cluster::instance().get_soc_desc(this->id());
     auto pcie_cores = soc_d.get_cores(CoreType::PCIE, soc_d.get_umd_coord_system());
+    std::cout << "BROSKOPRINT1: pcie_cores.size() = " << pcie_cores.size() << ": ";
+    for (const CoreCoord& core_coord : pcie_cores) {
+        std::cout << core_coord.str() << " ";
+    }
+    std::cout << std::endl;
     auto grid_size = this->grid_size();
 
     CoreCoord pcie_core = pcie_cores.empty() ? grid_size : pcie_cores[0];
@@ -714,6 +719,11 @@ void Device::initialize_and_launch_firmware() {
     core_info->noc_dram_addr_end = soc_d.dram_core_size;
 
     const std::vector<tt::umd::CoreCoord>& pcie_cores = soc_d.get_cores(CoreType::PCIE, soc_d.get_umd_coord_system());
+    std::cout << "BROSKOPRINT3: pcie_cores.size() = " << pcie_cores.size() << ": ";
+    for (const CoreCoord& core_coord : pcie_cores) {
+        std::cout << core_coord.str() << " ";
+    }
+    std::cout << std::endl;
     const std::vector<tt::umd::CoreCoord>& dram_cores = soc_d.get_cores(CoreType::DRAM, soc_d.get_umd_coord_system());
     const std::vector<CoreCoord>& eth_cores = soc_d.get_physical_ethernet_cores();
     TT_ASSERT(

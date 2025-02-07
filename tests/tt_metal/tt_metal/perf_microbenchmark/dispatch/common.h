@@ -120,6 +120,11 @@ DeviceData::DeviceData(
 
     const metal_SocDescriptor& soc_d = tt::Cluster::instance().get_soc_desc(device->id());
     const std::vector<tt::umd::CoreCoord>& pcie_cores = soc_d.get_cores(CoreType::PCIE, soc_d.get_umd_coord_system());
+    std::cout << "BROSKOPRINT2: pcie_cores.size() = " << pcie_cores.size() << ": ";
+    for (const CoreCoord& core_coord : pcie_cores) {
+        std::cout << core_coord.str() << " ";
+    }
+    std::cout << std::endl;
     for (const CoreCoord& core_coord : pcie_cores) {
         CoreCoord core = {core_coord.x, core_coord.y};
         // TODO: make this all work w/ phys coords
