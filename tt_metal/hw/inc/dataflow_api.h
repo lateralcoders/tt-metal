@@ -1024,6 +1024,7 @@ inline void noc_async_write_multicast(
     bool multicast_path_reserve = true,
     uint8_t noc = noc_index) {
     if constexpr (max_page_size <= NOC_MAX_BURST_SIZE) {
+        WAYPOINT("NWPZ");
         noc_async_write_multicast_one_packet(
             src_local_l1_addr, dst_noc_addr_multicast, size, num_dests, linked, multicast_path_reserve);
     } else {

@@ -282,6 +282,8 @@ void DevicePool::initialize_host(IDevice* dev) const {
     }
     dev->initialize_and_launch_firmware();
 
+    std::cout << "Done init and launch FW" << std::endl;
+
     watcher_attach(dev);
 }
 
