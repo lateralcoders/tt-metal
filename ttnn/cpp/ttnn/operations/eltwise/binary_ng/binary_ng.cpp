@@ -65,6 +65,13 @@ Tensor BinaryNg<binary_op_type>::invoke(
                 "Optional output tensor with Row Major input is not supported right now for Elementwise operations");
         }
 
+        if (a_dtype == DataType::BFLOAT16 && b_dtype == DataType::FLOAT32) {
+            input_a = ttnn::typecast(input_a, DataType::FLOAT32);
+        }
+        if (a_dtype == DataType::FLOAT32 && b_dtype == DataType::BFLOAT16) {
+            input_b = ttnn::typecast(input_b, DataType::FLOAT32);
+        }
+
         Tensor result = ttnn::prim::binary_ng(
             queue_id,
             input_a,
