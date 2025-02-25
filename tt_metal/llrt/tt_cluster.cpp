@@ -249,6 +249,7 @@ void Cluster::open_driver(const bool &skip_driver_allocs) {
         // This will remove harvested rows from the soc descriptor
         const bool perform_harvesting = true;
         const bool clean_system_resources = true;
+        std::cout << "Creating tt::umd::CLuster with sdesc_path " << sdesc_path << std::endl;
         device_driver = std::make_unique<tt::umd::Cluster>(
             sdesc_path,
             all_chips_set,
