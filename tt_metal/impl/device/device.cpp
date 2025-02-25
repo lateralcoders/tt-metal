@@ -367,6 +367,13 @@ void Device::initialize_device_kernel_defines()
 
     CoreCoord pcie_core = pcie_cores.empty() ? grid_size : pcie_cores[0];
 
+    std::cout << "Initialized PCIE core inside initialize_device_kernel_defines, pcie_cores " << pcie_cores.size()
+              << " ";
+    for (const auto& core : pcie_cores) {
+        std::cout << core.str() << " ";
+    }
+    std::cout << " grid size " << grid_size.str() << " pcie_core " << pcie_core.str() << std::endl;
+
     this->device_kernel_defines_.emplace("PCIE_NOC_X", std::to_string(pcie_core.x));
     this->device_kernel_defines_.emplace("PCIE_NOC_Y", std::to_string(pcie_core.y));
 }
