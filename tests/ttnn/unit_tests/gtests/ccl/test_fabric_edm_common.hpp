@@ -2505,6 +2505,30 @@ inline void RunPersistent1dFabricLatencyTest(
     tt::tt_metal::DeviceAddr worker_done_semaphore_address =
         ttnn::global_semaphore::get_global_semaphore_address(global_semaphores.global_semaphores.at(0));
 
+    size_t num_congestion_writers = 0;
+    for (const auto& spec : writer_specs) {
+        if (spec.has_value() && std::holds_alternative<DatapathBusyDataWriterSpec>(spec->spec)) {
+            num_congestion_writers++;
+        }
+    }
+    // Find latency writer specs and location
+    std::optional<size_t> latency_writer_index_opt;
+    for (size_t i = 0; i < writer_specs.size(); i++) {
+        if (writer_specs[i].has_value() && std::holds_alternative<LatencyPacketTestWriterSpec>(writer_specs[i]->spec)) {
+            latency_writer_index_opt = i;
+            break;
+        }
+    }
+    TT_FATAL(latency_writer_index_opt.has_value(), "Latency writer not found");
+    size_t latency_writer_index = latency_writer_index_opt.value();
+    auto congestion_writers_ready_semaphore = ttnn::global_semaphore::create_global_semaphore(
+        devices[latency_writer_index],
+        devices[latency_writer_index]->worker_cores(HalProgrammableCoreType::TENSIX, SubDeviceId{0}),
+        0,                              // initial value
+        tt::tt_metal::BufferType::L1);  // buffer type
+    tt::tt_metal::DeviceAddr congestion_writers_ready_semaphore_address =
+        ttnn::global_semaphore::get_global_semaphore_address(congestion_writers_ready_semaphore);
+
     std::vector<Program> programs(devices_with_workers.size());
 
     auto get_upstream_congestion_writer = [](const LatencyTestWriterSpecs& writer_specs) -> std::optional<WriterSpec> {
@@ -2549,7 +2573,7 @@ inline void RunPersistent1dFabricLatencyTest(
         bool start_of_line = line_index == 0;
         bool end_of_line = line_index == line_size - 1;
         bool has_forward_connection = !end_of_line;
-        bool has_backward_connection = is_latency_packet_sender && !start_of_line;
+        bool has_backward_connection = !start_of_line;
 
         auto local_device_fabric_handle =
             ttnn::ccl::EdmLineFabricOpInterface::build_program_builder_worker_connection_fabric(
@@ -2647,7 +2671,9 @@ inline void RunPersistent1dFabricLatencyTest(
                 packet_spec.num_bursts,
                 packet_header_cb_index,
                 packet_header_cb_size_in_headers,
-                loopback_distance_to_self};
+                loopback_distance_to_self,
+                congestion_writers_ready_semaphore_address,
+                num_congestion_writers};
             const auto& upstream_congestion_writer = get_upstream_congestion_writer(writer_specs);
             rt_args.push_back(upstream_congestion_writer.has_value());
             if (upstream_congestion_writer.has_value()) {
@@ -2686,6 +2712,16 @@ inline void RunPersistent1dFabricLatencyTest(
                 worker_done_semaphore_address,
                 packet_header_cb_index,
                 packet_header_cb_size_in_headers};
+
+            const bool is_downstream = i > latency_writer_index;
+            const auto latency_writer_core = devices[latency_writer_index]->worker_core_from_logical_core(
+                writer_specs[latency_writer_index]->worker_core_logical);
+
+            rt_args.push_back(is_downstream ? 1 : 0);
+            rt_args.push_back(latency_writer_core.x);
+            rt_args.push_back(latency_writer_core.y);
+            rt_args.push_back(congestion_writers_ready_semaphore_address);
+            rt_args.push_back(std::abs(static_cast<int>(i) - static_cast<int>(latency_writer_index)));
         }
 
         build_connection_args(has_forward_connection, ttnn::ccl::EdmLineFabricOpInterface::FORWARD, rt_args);

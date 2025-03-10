@@ -31,6 +31,14 @@ void kernel_main() {
     const size_t packet_header_cb = get_arg_val<uint32_t>(arg_idx++);
     const size_t packet_header_size_in_headers = get_arg_val<uint32_t>(arg_idx++);
     const size_t num_hops_over_loopback_fabric_to_self = get_arg_val<uint32_t>(arg_idx++);
+    const size_t congestion_writers_ready_semaphore = get_arg_val<uint32_t>(arg_idx++);
+    const size_t num_congestion_writers = get_arg_val<uint32_t>(arg_idx++);
+
+    // Wait for all congestion writers to be ready
+    DPRINT << "Waiting for " << num_congestion_writers << " congestion writers to be ready\n";
+    noc_semaphore_wait_min(
+        reinterpret_cast<volatile uint32_t*>(congestion_writers_ready_semaphore), num_congestion_writers);
+    DPRINT << "All congestion writers ready\n";
 
     size_t has_upstream_congestion_writer = get_arg_val<uint32_t>(arg_idx++) != 0;
     uint64_t upstream_congestion_writer_teardown_noc_addr = 0;
