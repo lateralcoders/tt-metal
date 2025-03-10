@@ -1038,12 +1038,7 @@ void kernel_main() {
     // Set larger packet accept limit (default is 4)
     eth_txq_reg_write(DEFAULT_ETH_TXQ, ETH_TXQ_DATA_PACKET_ACCEPT_AHEAD, 32);
 
-    static constexpr size_t DEFAULT_HANDSHAKE_CONTEXT_SWITCH_TIMEOUT = 0;
-    if constexpr (is_handshake_sender) {
-        erisc::datamover::handshake::sender_side_start(handshake_addr, DEFAULT_HANDSHAKE_CONTEXT_SWITCH_TIMEOUT);
-    } else {
-        erisc::datamover::handshake::receiver_side_start(handshake_addr);
-    }
+
 
     // the size of one of the buffers within a sender channel
     // For example if `channel_buffer_size` = 4k, with `SENDER_NUM_BUFFERS` = 2
@@ -1270,6 +1265,12 @@ void kernel_main() {
         ASSERT(*downstream_edm_noc_interface.from_remote_buffer_slot_rdptr_ptr == 0);
     }
 
+    static constexpr size_t DEFAULT_HANDSHAKE_CONTEXT_SWITCH_TIMEOUT = 0;
+    if constexpr (is_handshake_sender) {
+        erisc::datamover::handshake::sender_side_start(handshake_addr, DEFAULT_HANDSHAKE_CONTEXT_SWITCH_TIMEOUT);
+    } else {
+        erisc::datamover::handshake::receiver_side_start(handshake_addr);
+    }
     if constexpr (is_handshake_sender) {
         erisc::datamover::handshake::sender_side_finish(handshake_addr, DEFAULT_HANDSHAKE_CONTEXT_SWITCH_TIMEOUT);
     } else {
