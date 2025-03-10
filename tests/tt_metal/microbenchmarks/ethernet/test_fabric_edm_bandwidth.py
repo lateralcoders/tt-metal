@@ -24,7 +24,7 @@ def get_device_freq():
     return freq
 
 
-def profile_results(is_unicast, num_mcasts, num_unicasts, line_size, packet_size):
+def profile_results(is_unicast, num_mcasts, num_unicasts, line_size, packet_size, num_data_streams_override):
     freq = get_device_freq() / 1000.0
     setup = device_post_proc_config.default_setup()
     setup.deviceInputLog = profiler_log_path
@@ -49,7 +49,7 @@ def profile_results(is_unicast, num_mcasts, num_unicasts, line_size, packet_size
         main_loop_cycles.append(main_loop_cycle)
 
     packets_per_src_chip = num_unicasts if is_unicast else num_mcasts
-    traffic_streams_through_boundary = line_size / 2
+    traffic_streams_through_boundary = line_size / 2 if num_data_streams_override is None else num_data_streams_override
     total_byte_sent = packets_per_src_chip * traffic_streams_through_boundary * packet_size
     bandwidth = total_byte_sent / max(main_loop_cycles)
 
@@ -57,7 +57,16 @@ def profile_results(is_unicast, num_mcasts, num_unicasts, line_size, packet_size
 
 
 def run_fabric_edm(
-    is_unicast, num_mcasts, num_unicasts, num_links, num_op_invocations, line_sync, line_size, packet_size, expected_bw
+    is_unicast,
+    num_mcasts,
+    num_unicasts,
+    num_links,
+    num_op_invocations,
+    line_sync,
+    line_size,
+    packet_size,
+    expected_bw,
+    num_devices_with_workers_override,
 ):
     logger.warning("removing file profile_log_device.csv")
     os.system(f"rm -rf {os.environ['TT_METAL_HOME']}/generated/profiler/.logs/profile_log_device.csv")
@@ -70,7 +79,8 @@ def run_fabric_edm(
                 {num_op_invocations} \
                 {int(line_sync)} \
                 {line_size} \
-                {packet_size} "
+                {packet_size} \
+                {0 if num_devices_with_workers_override is None else num_devices_with_workers_override}"
     rc = os.system(cmd)
     if rc != 0:
         if os.WEXITSTATUS(rc) == 1:
@@ -79,24 +89,39 @@ def run_fabric_edm(
         logger.info("Error in running the test")
         assert False
 
-    bandwidth = profile_results(is_unicast, num_mcasts, num_unicasts, line_size, packet_size)
+    num_data_streams_override = None
+    if num_devices_with_workers_override is not None:
+        num_data_streams_override = num_devices_with_workers_override
+    bandwidth = profile_results(is_unicast, num_mcasts, num_unicasts, line_size, packet_size, num_data_streams_override)
     logger.info("bandwidth: {} B/c", bandwidth)
-    assert expected_bw - 0.2 <= bandwidth <= expected_bw + 0.2
+    allowable_delta = min(0.2, expected_bw * 0.1)
+    assert expected_bw - allowable_delta <= bandwidth <= expected_bw + allowable_delta
 
 
+#####################################
+##        Multicast Tests
+#####################################
+
+
+# 1D All-to-All Multicast
 @pytest.mark.parametrize("num_mcasts", [200000])
 @pytest.mark.parametrize("num_unicasts", [0])
 @pytest.mark.parametrize("num_links", [1])
 @pytest.mark.parametrize("num_op_invocations", [1])
 @pytest.mark.parametrize("line_sync", [True])
 @pytest.mark.parametrize("line_size", [4])
-@pytest.mark.parametrize("packet_size", [4096])
-@pytest.mark.parametrize(
-    "expected_bw",
-    [6.7],
-)
-def test_fabric_edm_mcast_bw(
-    num_mcasts, num_unicasts, num_links, num_op_invocations, line_sync, line_size, packet_size, expected_bw
+@pytest.mark.parametrize("num_devices_with_workers_override", [None])
+@pytest.mark.parametrize("packet_size,expected_bw", [(16, 0.02), (512, 0.8), (1088, 1.7), (2048, 3.24), (4096, 6.7)])
+def test_1D_fabric_all_to_all_mcast_bw(
+    num_mcasts,
+    num_unicasts,
+    num_links,
+    num_op_invocations,
+    line_sync,
+    line_size,
+    num_devices_with_workers_override,
+    packet_size,
+    expected_bw,
 ):
     run_fabric_edm(
         False,
@@ -108,7 +133,47 @@ def test_fabric_edm_mcast_bw(
         line_size,
         packet_size,
         expected_bw,
+        num_devices_with_workers_override,
     )
+
+
+# 1D All-to-All Multicast
+@pytest.mark.parametrize("num_mcasts", [200000])
+@pytest.mark.parametrize("num_unicasts", [0])
+@pytest.mark.parametrize("num_links", [1])
+@pytest.mark.parametrize("num_op_invocations", [1])
+@pytest.mark.parametrize("line_sync", [True])
+@pytest.mark.parametrize("line_size", [4])
+@pytest.mark.parametrize("num_devices_with_workers_override", [1])
+@pytest.mark.parametrize("packet_size,expected_bw", [(16, 0.037), (512, 1.2), (1088, 2.5), (2048, 4.67), (4096, 9.25)])
+def test_1D_fabric_mcast_unidirectional_bw(
+    num_mcasts,
+    num_unicasts,
+    num_links,
+    num_op_invocations,
+    line_sync,
+    line_size,
+    num_devices_with_workers_override,
+    packet_size,
+    expected_bw,
+):
+    run_fabric_edm(
+        False,
+        num_mcasts,
+        num_unicasts,
+        num_links,
+        num_op_invocations,
+        line_sync,
+        line_size,
+        packet_size,
+        expected_bw,
+        num_devices_with_workers_override,
+    )
+
+
+#####################################
+##        Unicast Tests
+#####################################
 
 
 @pytest.mark.parametrize("num_mcasts", [0])
@@ -118,12 +183,21 @@ def test_fabric_edm_mcast_bw(
 @pytest.mark.parametrize("line_sync", [True])
 @pytest.mark.parametrize("line_size", [2])
 @pytest.mark.parametrize("packet_size", [4096])
+@pytest.mark.parametrize("num_devices_with_workers_override", [None])
 @pytest.mark.parametrize(
     "expected_bw",
     [8.4],
 )
 def test_fabric_edm_unicast_bw(
-    num_mcasts, num_unicasts, num_links, num_op_invocations, line_sync, line_size, packet_size, expected_bw
+    num_mcasts,
+    num_unicasts,
+    num_links,
+    num_op_invocations,
+    line_sync,
+    line_size,
+    packet_size,
+    num_devices_with_workers_override,
+    expected_bw,
 ):
     run_fabric_edm(
         True,
@@ -135,4 +209,5 @@ def test_fabric_edm_unicast_bw(
         line_size,
         packet_size,
         expected_bw,
+        num_devices_with_workers_override,
     )

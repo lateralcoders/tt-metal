@@ -374,6 +374,9 @@ class EdmLineFabricOpInterface {
 
     void set_firmware_context_switch_interval(size_t interval);
 
+    void initialize_kernel_ready_memory_location_to_unready() const;
+    void wait_for_kernel_ready() const;
+
     // Device ID -> EDM Builders
     std::unordered_map<size_t, std::vector<FabricEriscDatamoverBuilder>> edm_builders_forward_direction;
     std::unordered_map<size_t, std::vector<FabricEriscDatamoverBuilder>> edm_builders_backward_direction;

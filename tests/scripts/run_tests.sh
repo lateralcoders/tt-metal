@@ -212,6 +212,7 @@ run_T3K_microbenchmarks_pipeline_tests() {
 
     source python_env/bin/activate
     pytest -svv tests/tt_metal/microbenchmarks/ethernet/test_fabric_edm_bandwidth.py
+    pytest -svv tests/tt_metal/microbenchmarks/ethernet/test_1d_fabric_latency.py
 }
 
 run_ttnn_sweeps_pipeline_tests() {

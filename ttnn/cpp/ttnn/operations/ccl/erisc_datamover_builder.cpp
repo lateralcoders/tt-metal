@@ -27,6 +27,13 @@
 
 using namespace tt::tt_metal::experimental;
 
+namespace tt::llrt {
+std::vector<std::uint32_t> read_hex_vec_from_core(chip_id_t chip, const CoreCoord& core, uint64_t addr, uint32_t size);
+template <typename DType>
+void write_hex_vec_to_core(
+    chip_id_t chip, const CoreCoord& core, const std::vector<DType>& hex_vec, uint64_t addr, bool small_access = false);
+};  // namespace tt::llrt
+
 namespace ttnn::ccl {
 
 // The channel structure is as follows:
@@ -836,6 +843,86 @@ void EdmLineFabricOpInterface::set_firmware_context_switch_interval(size_t inter
     }
 }
 
+void EdmLineFabricOpInterface::initialize_kernel_ready_memory_location_to_unready() const {
+    std::vector<uint32_t> init_val(1, 99);
+    auto get_erisc_l1_addr = [](const FabricEriscDatamoverBuilder& builder) {
+        return builder.config.edm_channel_ack_addr;
+    };
+    auto write_to_erisc =
+        [&init_val, get_erisc_l1_addr](
+            const std::unordered_map<size_t, std::vector<FabricEriscDatamoverBuilder>>& edm_builders_in_direction) {
+            for (auto& [chip_id, edm_builders] : edm_builders_in_direction) {
+                for (auto& builder : edm_builders) {
+                    uint64_t erisc_l1_addr = get_erisc_l1_addr(builder);
+                    TT_FATAL(builder.my_chip_id == chip_id, "Chip ID mismatch");
+                    tt::llrt::write_hex_vec_to_core(
+                        builder.my_chip_id, CoreCoord{builder.my_noc_x, builder.my_noc_y}, init_val, erisc_l1_addr);
+                }
+            }
+        };
+    auto wait_for_value_to_reach_destination =
+        [&init_val, get_erisc_l1_addr](
+            const std::unordered_map<size_t, std::vector<FabricEriscDatamoverBuilder>>& edm_builders_in_direction) {
+            for (auto& [chip_id, edm_builders] : edm_builders_in_direction) {
+                for (auto& builder : edm_builders) {
+                    TT_FATAL(builder.my_chip_id == chip_id, "Chip ID mismatch");
+                    auto erisc_l1_addr = get_erisc_l1_addr(builder);
+                    bool landed = false;
+                    while (!landed) {
+                        const auto result = tt::llrt::read_hex_vec_from_core(
+                            builder.my_chip_id, {builder.my_noc_x, builder.my_noc_y}, erisc_l1_addr, sizeof(uint32_t));
+                        landed = result.at(0) == init_val.at(0);
+                    }
+                    log_info(
+                        tt::LogAlways,
+                        "Kernel uninitialized on device {} at address {}. Core (x={},y={})",
+                        builder.my_chip_id,
+                        erisc_l1_addr,
+                        builder.my_noc_x,
+                        builder.my_noc_y);
+                }
+            }
+        };
+
+    write_to_erisc(edm_builders_forward_direction);
+    write_to_erisc(edm_builders_backward_direction);
+
+    wait_for_value_to_reach_destination(edm_builders_forward_direction);
+    wait_for_value_to_reach_destination(edm_builders_backward_direction);
+}
+void EdmLineFabricOpInterface::wait_for_kernel_ready() const {
+    uint32_t kernel_uninitialized_value = 99;
+    auto get_erisc_l1_addr = [](const FabricEriscDatamoverBuilder& builder) {
+        return builder.config.edm_channel_ack_addr;
+    };
+    auto wait_for_kernel_to_initialize =
+        [&kernel_uninitialized_value, get_erisc_l1_addr](
+            const std::unordered_map<size_t, std::vector<FabricEriscDatamoverBuilder>>& edm_builders_in_direction) {
+            for (auto& [chip_id, edm_builders] : edm_builders_in_direction) {
+                for (auto& builder : edm_builders) {
+                    TT_FATAL(builder.my_chip_id == chip_id, "Chip ID mismatch");
+                    auto erisc_l1_addr = get_erisc_l1_addr(builder);
+                    bool initialized = false;
+                    while (!initialized) {
+                        const auto result = tt::llrt::read_hex_vec_from_core(
+                            builder.my_chip_id, {builder.my_noc_x, builder.my_noc_y}, erisc_l1_addr, sizeof(uint32_t));
+                        initialized = result.at(0) != kernel_uninitialized_value;
+                    }
+                    log_info(
+                        tt::LogAlways,
+                        "Kernel initialized on device {} at address {}. Core (x={},y={})",
+                        builder.my_chip_id,
+                        erisc_l1_addr,
+                        builder.my_noc_x,
+                        builder.my_noc_y);
+                }
+            }
+        };
+
+    wait_for_kernel_to_initialize(edm_builders_forward_direction);
+    wait_for_kernel_to_initialize(edm_builders_backward_direction);
+}
+
 void initialize_edm_fabric(
     distributed::MeshDevice* mesh_device,
     bool wrap_fabric_around_mesh,
@@ -852,6 +939,7 @@ void initialize_edm_fabric(
         if (context_switch_interval_override.has_value()) {
             fabric_device_builders.set_firmware_context_switch_interval(context_switch_interval_override.value());
         }
+        fabric_device_builders.initialize_kernel_ready_memory_location_to_unready();
         fabric_device_builders.build_kernels();
 
         for (size_t i = 0; i < devices.size(); i++) {
@@ -861,6 +949,7 @@ void initialize_edm_fabric(
             device->push_work(
                 [&]() { tt::tt_metal::EnqueueProgram(device->command_queue(), *program_ptr, false); }, true);
         }
+        fabric_device_builders.wait_for_kernel_ready();
     } else {
         std::vector<EdmLineFabricOpInterface> row_fabric_lines;
         row_fabric_lines.reserve(mesh_device->get_view().get_row_views().size());
@@ -900,6 +989,13 @@ void initialize_edm_fabric(
             }
         }
 
+        std::for_each(row_fabric_lines.begin(), row_fabric_lines.end(), [&](auto& line) {
+            line.initialize_kernel_ready_memory_location_to_unready();
+        });
+        std::for_each(col_fabric_lines.begin(), col_fabric_lines.end(), [&](auto& line) {
+            line.initialize_kernel_ready_memory_location_to_unready();
+        });
+
         std::for_each(row_fabric_lines.begin(), row_fabric_lines.end(), [](auto& line) { line.build_kernels(); });
         std::for_each(col_fabric_lines.begin(), col_fabric_lines.end(), [](auto& line) { line.build_kernels(); });
 
@@ -913,6 +1009,11 @@ void initialize_edm_fabric(
                     [&]() { tt::tt_metal::EnqueueProgram(device->command_queue(), program, false); }, true);
             }
         }
+
+        std::for_each(
+            row_fabric_lines.begin(), row_fabric_lines.end(), [&](auto& line) { line.wait_for_kernel_ready(); });
+        std::for_each(
+            col_fabric_lines.begin(), col_fabric_lines.end(), [&](auto& line) { line.wait_for_kernel_ready(); });
     }
 }
 

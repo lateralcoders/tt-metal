@@ -33,7 +33,7 @@ def parse_profile_log(csv_path: str) -> Dict[str, List[int]]:
     grouped = df.groupby(["PCIe_slot", "core_x", "core_y", "run_ID", "zone_name"])
 
     for (PCIe_slot, core_x, core_y, run_id, zone_name), group in grouped:
-        if PCIe_slot != 31:
+        if PCIe_slot != 13:
             continue
         if zone_name in durations:
             start_time = group[group["type"] == "ZONE_START"]["time[cycles_since_reset]"].values[0]
@@ -63,10 +63,9 @@ def analyze_durations(
 
     # Get unique core coordinates
     core_coords = set()
-    for zone in durations.values():
-        for x in zone.keys():
-            for y in zone[x].keys():
-                core_coords.add((x, y))
+    for x in durations["WaitSem"].keys():
+        for y in durations["WaitSem"][x].keys():
+            core_coords.add((x, y))
 
     for core_x, core_y in core_coords:
         fig = plt.figure(figsize=(20, 16))
@@ -101,7 +100,7 @@ def analyze_durations(
             return
 
         for zone_name, values in durations.items():
-            if core_x in values and core_y in values[core_x]:
+            if len(values[core_x][core_y]) > 0:
                 values_array = np.array(values[core_x][core_y])
 
                 stats[zone_name] = {
@@ -113,12 +112,12 @@ def analyze_durations(
                 }
 
                 ax = axes_map[zone_name]
-                sns.histplot(values_array, ax=ax, bins="auto", kde=True)
+                sns.histplot(values_array, ax=ax, bins=20, kde=True)
                 ax.set_title(f"{zone_name} Distribution (core {core_x},{core_y})")
                 ax.set_xlabel("Cycles")
                 ax.set_ylabel("Count")
 
-        if core_x in waitsem_timestamps and core_y in waitsem_timestamps[core_x]:
+        if len(waitsem_timestamps[core_x][core_y]) > 0:
             waitsem_array = np.array(waitsem_timestamps[core_x][core_y])
             waitsem_x_axis = np.arange(len(waitsem_array))
 

@@ -13,6 +13,8 @@ int main(int argc, char** argv) {
     bool line_sync = std::stoi(argv[arg_idx++]);
     std::size_t line_size = std::stoi(argv[arg_idx++]);
     std::size_t packet_payload_size_bytes = std::stoi(argv[arg_idx++]);
+    std::size_t num_devices_with_workers = std::stoi(argv[arg_idx++]);
+    TT_FATAL(arg_idx == argc, "Read past end of args or didn't read all args");
 
     uint32_t test_expected_num_devices = 8;
     if (tt::tt_metal::GetNumAvailableDevices() < test_expected_num_devices) {
@@ -23,6 +25,9 @@ int main(int argc, char** argv) {
     WriteThroughputStabilityTestWithPersistentFabricParams params;
     params.line_sync = line_sync;
     params.line_size = line_size;
+    if (num_devices_with_workers > 0) {
+        params.num_devices_with_workers = num_devices_with_workers;
+    }
     RunWriteThroughputStabilityTestWithPersistentFabric(
         num_mcasts, num_unicasts, num_links, num_op_invocations, params, packet_payload_size_bytes);
 }
