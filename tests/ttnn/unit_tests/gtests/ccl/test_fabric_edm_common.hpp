@@ -2436,10 +2436,16 @@ inline void RunPersistent1dFabricLatencyTest(
         if (writer_specs.at(i).has_value()) {
             const auto& spec = writer_specs.at(i).value();
             ttnn::SmallVector<std::shared_ptr<Buffer>> device_dest_buffers;
+            auto message_size_bytes = spec.message_size_bytes;
+            if (message_size_bytes == 0) {
+                // just allocate some dummy space - technically we don't need to allocate anything
+                // but this keeps things simpler and it's a few bytes in a test
+                message_size_bytes = 16;
+            }
             device_dest_buffers.reserve(line_size);
             for (auto* d : devices) {
-                device_dest_buffers.push_back(CreateBuffer(
-                    InterleavedBufferConfig{d, spec.message_size_bytes, spec.message_size_bytes, BufferType::L1}));
+                device_dest_buffers.push_back(
+                    CreateBuffer(InterleavedBufferConfig{d, message_size_bytes, message_size_bytes, BufferType::L1}));
             }
             auto address = device_dest_buffers[0]->address();
             TT_FATAL(
@@ -2449,6 +2455,7 @@ inline void RunPersistent1dFabricLatencyTest(
                     [address](const auto& buffer) { return buffer->address() == address; }),
                 "All destination buffers must have the same address");
             dest_buffer_addresses.push_back(address);
+            TT_FATAL(address != 0, "address uninitialized");
         }
     }
     static constexpr tt::DataFormat cb_df = tt::DataFormat::Bfp8;
@@ -2573,6 +2580,7 @@ inline void RunPersistent1dFabricLatencyTest(
             worker_ct_args = {false, payloads_are_mcast, sem_inc_only};
 
         } else {
+            log_info(tt::LogTest, "adding datapath busy writer");
             const auto& datapath_spec = std::get<DatapathBusyDataWriterSpec>(writer_specs[i]->spec);
             worker_ct_args.push_back(datapath_spec.mcast);
         }
@@ -2601,7 +2609,7 @@ inline void RunPersistent1dFabricLatencyTest(
         };
         // RT ARGS
         std::vector<uint32_t> rt_args = {};
-        size_t dest_bank_addr = dest_buffer_addresses[i];
+        size_t dest_bank_addr = dest_buffer_addresses.at(i);
         size_t loopback_distance_to_self = ((line_size - 1) - line_index) * 2;
         size_t loopback_distance_to_start_of_line = ((line_size - 1) * 2) - line_index;
         if (is_latency_packet_sender) {

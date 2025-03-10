@@ -50,6 +50,7 @@ int main(int argc, char** argv) {
             latency_measurement_worker_line_index != 0,
             "Tried adding upstream congestion writer but the latency measurement packet router was added to line index "
             "0. If there is an upstream congestion writer, then the latency test writer cannot be at line index 0.");
+        TT_FATAL(congestion_writers_message_size != 0, "upstream congestion writer message size must be non-zero");
         size_t upstream_worker_line_index = latency_measurement_worker_line_index - 1;
         writer_specs.at(upstream_worker_line_index) = WriterSpec{
             .spec =
@@ -72,13 +73,15 @@ int main(int argc, char** argv) {
         line_size,
         line_size - 1 - latency_measurement_worker_line_index);
     for (size_t i = 0; i < num_downstream_fabric_congestion_writers; i++) {
+        TT_FATAL(congestion_writers_message_size != 0, "downstream congestion writer message size must be non-zero");
         size_t downstream_worker_line_index = latency_measurement_worker_line_index + 1 + i;
+        size_t distance = downstream_worker_line_index - latency_measurement_worker_line_index;
         writer_specs.at(downstream_worker_line_index) = WriterSpec{
             .spec =
                 DatapathBusyDataWriterSpec{
                     .message_size_bytes = congestion_writers_message_size,
                     .mcast = congestion_writers_use_mcast,
-                    .write_distance = compute_loopback_distance_to_start_of_line(downstream_worker_line_index),
+                    .write_distance = distance,
                 },
             .worker_core_logical = CoreCoord(0, 0),
             .message_size_bytes = congestion_writers_message_size};

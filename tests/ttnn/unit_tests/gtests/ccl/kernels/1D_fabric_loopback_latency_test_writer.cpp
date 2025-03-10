@@ -58,6 +58,17 @@ void kernel_main() {
 
     auto fabric_connection = FabricConnectionManager::build_from_args(arg_idx);
 
+    for (size_t i = 0; i < num_downstream_congestion_writers; i++) {
+        DPRINT << "downstream congestion writer " << (uint32_t)i << "\n";
+        uint64_t downstream_noc_addr = safe_get_noc_addr(
+            downstream_congestion_writer_noc_x_list_ptr[i],
+            downstream_congestion_writer_noc_y_list_ptr[i],
+            downstream_congestion_writer_teardown_semaphore_addresses_ptr[i],
+            0);
+        DPRINT << "\t " << (uint64_t)downstream_noc_addr << "\n";
+        DPRINT << "\tdistance: " << (uint32_t)downstream_congestion_writer_hop_distance_list_ptr[i] << "\n";
+    }
+
     ASSERT(fabric_connection.is_logically_connected());
 
     if (!fabric_connection.is_logically_connected()) {
@@ -121,11 +132,11 @@ void kernel_main() {
                 (uint32_t)payload_packet_header, sizeof(PACKET_HEADER_TYPE));
         };
     // Flush the datapath
-    DPRINT << "Waiting for fabric write slot0\n";
+    // DPRINT << "Waiting for fabric write slot0\n";
     {
         DeviceZoneScopedN("Flush");
-        send_seminc_packet();
-        wait_for_semaphore_then_reset(1);
+        // send_seminc_packet();
+        // wait_for_semaphore_then_reset(1);
     }
 
     {
@@ -178,9 +189,7 @@ void kernel_main() {
     if (has_upstream_congestion_writer) {
         DPRINT << "Tearing down upstream congestion writer\n";
         send_teardown_message(
-            fabric_connection.get_backward_connection(),
-            upstream_congestion_writer_teardown_noc_addr,
-            num_hops_over_loopback_fabric_to_self);
+            fabric_connection.get_backward_connection(), upstream_congestion_writer_teardown_noc_addr, 1);
         DPRINT << "Done tearing down upstream congestion writer\n";
     }
     for (size_t i = 0; i < num_downstream_congestion_writers; i++) {
@@ -190,6 +199,10 @@ void kernel_main() {
             downstream_congestion_writer_noc_y_list_ptr[i],
             downstream_congestion_writer_teardown_semaphore_addresses_ptr[i],
             0);
+
+        DPRINT << "Writing downstream to addr " << (uint64_t)downstream_noc_addr << " distance "
+               << (uint32_t)downstream_congestion_writer_hop_distance_list_ptr[i] << "\n";
+
         send_teardown_message(
             fabric_connection.get_forward_connection(),
             downstream_noc_addr,
@@ -197,6 +210,7 @@ void kernel_main() {
         DPRINT << "Done tearing down downstream congestion writer " << (uint32_t)i << "\n";
     }
 
+    DPRINT << "Closing\n";
     fabric_connection.close();
     noc_async_write_barrier();
     DPRINT << "Done\n";
