@@ -40,6 +40,7 @@
 #include <functional>
 #include <limits>
 #include <unordered_set>
+#include <variant>
 
 #include "tests/ttnn/unit_tests/gtests/ccl/test_fabric_edm_common.hpp"
 
@@ -1065,7 +1066,7 @@ void persistent_fabric_teardown_sequence(
     });
 }
 
-void setup_test_with_persistent_fabric(
+static void setup_test_with_persistent_fabric(
     const std::vector<IDevice*>& devices,
     std::vector<Program>& programs,
     std::optional<SubdeviceInfo>& subdevice_managers,
@@ -1073,7 +1074,8 @@ void setup_test_with_persistent_fabric(
     std::vector<Program*>& fabric_program_ptrs,
     std::optional<ttnn::ccl::EdmLineFabricOpInterface>& line_fabric,
     bool enable_persistent_fabric,
-    std::optional<size_t> num_links = std::nullopt) {
+    std::optional<size_t> num_links = std::nullopt,
+    std::optional<size_t> firmward_context_switch_interval = std::nullopt) {
     if (enable_persistent_fabric) {
         log_info(tt::LogTest, "Enabling persistent fabric");
         fabric_programs = std::vector<Program>(devices.size());
@@ -1089,7 +1091,7 @@ void setup_test_with_persistent_fabric(
 
     line_fabric = ttnn::ccl::EdmLineFabricOpInterface(
         devices, fabric_program_ptrs, enable_persistent_fabric, num_links.value_or(1));
-    line_fabric->set_firmware_context_switch_interval(0);
+    line_fabric->set_firmware_context_switch_interval(firmward_context_switch_interval.value_or(0));
 
     if (enable_persistent_fabric) {
         TT_FATAL(fabric_programs.has_value(), "Fabric programs must be set if fabric is enabled");
@@ -2135,7 +2137,8 @@ void RunWriteThroughputStabilityTestWithPersistentFabric(
         fabric_program_ptrs,
         fabric_handle,
         enable_persistent_fabric_mode,
-        num_links);
+        num_links,
+        ttnn::ccl::FabricEriscDatamoverBuilder::default_firmware_context_switch_interval);
 
     // Other boiler plate setup
     CoreRangeSet worker_cores = CoreRangeSet(CoreRange(CoreCoord(0, 0), CoreCoord(num_links - 1, 0)));
