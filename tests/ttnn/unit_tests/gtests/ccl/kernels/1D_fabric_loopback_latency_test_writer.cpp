@@ -13,72 +13,6 @@
 #include <cstddef>
 #include "debug/dprint.h"
 
-// FORCE_INLINE void print_pkt_hdr_routing_fields(volatile tt::fabric::PacketHeader *const packet_start) {
-// #ifdef DEBUG_PRINT_ENABLED
-//     switch (packet_start->chip_send_type) {
-//         case tt::fabric::CHIP_UNICAST: {
-//             DPRINT << "C_UNI: dist:" << (uint32_t) (packet_start->routing_fields.value &
-//             tt::fabric::RoutingFields::HOP_DISTANCE_MASK) << "\n"; break;
-//         }
-//         case tt::fabric::CHIP_MULTICAST: {
-//             DPRINT << "C_MCST: dist:" << (uint32_t) (packet_start->routing_fields.value &
-//             tt::fabric::RoutingFields::HOP_DISTANCE_MASK) <<
-//                 ", rng:" << (uint32_t)((packet_start->routing_fields.value & tt::fabric::RoutingFields::RANGE_MASK)
-//                 >> tt::fabric::RoutingFields::START_DISTANCE_FIELD_BIT_WIDTH)  << "\n";
-//             break;
-//         }
-//     };
-// #endif
-// }
-
-// FORCE_INLINE void print_pkt_hdr_routing_fields(volatile tt::fabric::LowLatencyPacketHeader *const packet_start) {
-//     #ifdef DEBUG_PRINT_ENABLED
-//         DPRINT << "ROUTE:" << packet_start->routing_fields.value << "\n";
-//     #endif
-// }
-
-// template <typename T>
-// FORCE_INLINE void print_pkt_header_noc_fields(volatile T *const packet_start) {
-// #ifdef DEBUG_PRINT_ENABLED
-//     switch (packet_start->noc_send_type) {
-//         case tt::fabric::NocSendType::NOC_UNICAST_WRITE: {
-//                 DPRINT << "N_WR addr:"<<(uint64_t)packet_start->command_fields.unicast_write.noc_address << "\n";
-//         } break;
-//         case tt::fabric::NocSendType::NOC_UNICAST_ATOMIC_INC: {
-//             DPRINT << "N_WR addr:"<<(uint64_t)packet_start->command_fields.unicast_seminc.noc_address <<
-//                 ", val:" << (uint32_t) packet_start->command_fields.unicast_seminc.val << "\n";
-
-//         } break;
-//         default:
-//         ASSERT(false); // unimplemented
-//         break;
-//     };
-// #endif
-// }
-
-// FORCE_INLINE void print_pkt_header(volatile tt::fabric::PacketHeader *const packet_start) {
-// #ifdef DEBUG_PRINT_ENABLED
-//     auto const& header = *packet_start;
-//     DPRINT << "PKT: nsnd_t:" << (uint32_t) packet_start->noc_send_type <<
-//         ", csnd_t:" << (uint32_t) packet_start->chip_send_type <<
-//         ", src_chip:" << (uint32_t) packet_start->src_ch_id <<
-//         ", payload_size_bytes:" << (uint32_t) packet_start->payload_size_bytes << "\n";
-//     print_pkt_hdr_routing_fields(packet_start);
-//     print_pkt_header_noc_fields(packet_start);
-// #endif
-// }
-
-// FORCE_INLINE void print_pkt_header(volatile tt::fabric::LowLatencyPacketHeader *const packet_start) {
-// #ifdef DEBUG_PRINT_ENABLED
-//     auto const& header = *packet_start;
-//     DPRINT << "PKT: nsnd_t:" << (uint32_t) packet_start->noc_send_type <<
-//         ", src_chip:" << (uint32_t) packet_start->src_ch_id <<
-//         ", payload_size_bytes:" << (uint32_t) packet_start->payload_size_bytes << "\n";
-//     print_pkt_hdr_routing_fields(packet_start);
-//     print_pkt_header_noc_fields(packet_start);
-// #endif
-// }
-
 constexpr bool enable_fused_payload_with_sync = get_compile_time_arg_val(0) != 0;
 constexpr bool payloads_are_mcast = get_compile_time_arg_val(1) != 0;
 constexpr bool sem_inc_only = get_compile_time_arg_val(2) != 0;
@@ -99,17 +33,17 @@ void kernel_main() {
     const size_t num_hops_over_loopback_fabric_to_self = get_arg_val<uint32_t>(arg_idx++);
 
     size_t has_upstream_congestion_writer = get_arg_val<uint32_t>(arg_idx++) != 0;
-    // uint64_t upstream_congestion_writer_teardown_noc_addr = 0;
+    uint64_t upstream_congestion_writer_teardown_noc_addr = 0;
     if (has_upstream_congestion_writer) {
         DPRINT << "Has upstream congestion writer\n";
         size_t upstream_congestion_writer_teardown_bank_addr = get_arg_val<uint32_t>(arg_idx++);
         size_t upstream_congestion_writer_teardown_noc_x = get_arg_val<uint32_t>(arg_idx++);
         size_t upstream_congestion_writer_teardown_noc_y = get_arg_val<uint32_t>(arg_idx++);
-        // upstream_congestion_writer_teardown_noc_addr = safe_get_noc_addr(
-        //     upstream_congestion_writer_teardown_noc_x,
-        //     upstream_congestion_writer_teardown_noc_y,
-        //     upstream_congestion_writer_teardown_bank_addr,
-        //     0);
+        upstream_congestion_writer_teardown_noc_addr = safe_get_noc_addr(
+            upstream_congestion_writer_teardown_noc_x,
+            upstream_congestion_writer_teardown_noc_y,
+            upstream_congestion_writer_teardown_bank_addr,
+            0);
     }
     size_t num_downstream_congestion_writers = get_arg_val<uint32_t>(arg_idx++);
     size_t* downstream_congestion_writer_teardown_semaphore_addresses_ptr =
@@ -173,86 +107,97 @@ void kernel_main() {
     auto send_seminc_packet = [&fabric_connection, sem_inc_packet_header]() {
         DPRINT << "Waiting for fabric write slot\n";
         fabric_connection.get_forward_connection().wait_for_empty_write_slot();
-        print_pkt_header(sem_inc_packet_header);
+        // print_pkt_header(sem_inc_packet_header);
         DPRINT << "Sending seminc packet\n";
         fabric_connection.get_forward_connection().send_payload_flush_non_blocking_from_address(
             (uint32_t)sem_inc_packet_header, sizeof(PACKET_HEADER_TYPE));
     };
-    // auto send_payload_packet = [&fabric_connection, payload_packet_header, dest_dummy_payload_buffer_address,
-    // payload_size_bytes]() {
-    //     fabric_connection.get_forward_connection().wait_for_empty_write_slot();
-    //     fabric_connection.get_forward_connection().send_payload_without_header_non_blocking_from_address(
-    //         dest_dummy_payload_buffer_address, payload_size_bytes);
-    //     fabric_connection.get_forward_connection().send_payload_flush_non_blocking_from_address(
-    //         (uint32_t)payload_packet_header, sizeof(PACKET_HEADER_TYPE));
-    // };
+    auto send_payload_packet =
+        [&fabric_connection, payload_packet_header, dest_dummy_payload_buffer_address, payload_size_bytes]() {
+            fabric_connection.get_forward_connection().wait_for_empty_write_slot();
+            fabric_connection.get_forward_connection().send_payload_without_header_non_blocking_from_address(
+                dest_dummy_payload_buffer_address, payload_size_bytes);
+            fabric_connection.get_forward_connection().send_payload_flush_non_blocking_from_address(
+                (uint32_t)payload_packet_header, sizeof(PACKET_HEADER_TYPE));
+        };
     // Flush the datapath
     DPRINT << "Waiting for fabric write slot0\n";
-    send_seminc_packet();
-    wait_for_semaphore_then_reset(1);
+    {
+        DeviceZoneScopedN("Flush");
+        send_seminc_packet();
+        wait_for_semaphore_then_reset(1);
+    }
 
-    // {
-    //     for (size_t i = 0; i < num_bursts_to_send; i++) {
-    //         DPRINT << "Burst " << (uint32_t)i << "\n";
-    //         // Wait for the fabric endpoint to have a completely empty sender channel buffer
+    {
+        for (size_t i = 0; i < num_bursts_to_send; i++) {
+            DPRINT << "Burst " << (uint32_t)i << "\n";
+            // Wait for the fabric endpoint to have a completely empty sender channel buffer
 
-    //         // Burst
-    //         {
-    //             DeviceZoneScopedN("BURST-WRITE");
-    //             for (size_t j = 0; j < burst_size; j++) {
-    //                 if constexpr (enable_fused_payload_with_sync) {
-    //                     static_assert(!enable_fused_payload_with_sync, "Fused payload with sync is not supported");
-    //                 } else {
-    //                     if constexpr (!sem_inc_only) {
-    //                         send_payload_packet();
-    //                     }
-    //                     send_seminc_packet();
-    //                 }
-    //             }
-    //             // Don't want to include noc command buffer response time in the total latency measurement
-    //             noc_async_writes_flushed();
+            // Burst
+            {
+                DeviceZoneScopedN("BURST-WRITE");
+                for (size_t j = 0; j < burst_size; j++) {
+                    DPRINT << "Burst write " << (uint32_t)j << "\n";
+                    if constexpr (enable_fused_payload_with_sync) {
+                        static_assert(!enable_fused_payload_with_sync, "Fused payload with sync is not supported");
+                    } else {
+                        if constexpr (!sem_inc_only) {
+                            send_payload_packet();
+                        }
+                        send_seminc_packet();
+                    }
+                }
+                // Don't want to include noc command buffer response time in the total latency measurement
+                noc_async_writes_flushed();
 
-    //             {
-    //                 DeviceZoneScopedN("WAIT-FOR-ALL-SEMAPHORES");
-    //                 for (size_t j = 0; j < burst_size; j++) {
-    //                     DeviceZoneScopedN("WAIT-FOR-ONE-SEMAPHORE");
-    //                     noc_semaphore_wait_min(reinterpret_cast<volatile uint32_t*>(semaphore_address), j);
-    //                 }
-    //             }
-    //             *reinterpret_cast<volatile uint32_t*>(semaphore_address) = 0;
-    //         }
-    //     }
-    // }
+                {
+                    DeviceZoneScopedN("WAIT-FOR-ALL-SEMAPHORES");
+                    for (size_t j = 0; j < burst_size; j++) {
+                        // DeviceZoneScopedN("WAIT-FOR-ONE-SEMAPHORE");
+                        DPRINT << "Waiting for semaphore " << (uint32_t)j << "\n";
+                        noc_semaphore_wait_min(reinterpret_cast<volatile uint32_t*>(semaphore_address), j + 1);
+                    }
+                }
+                *reinterpret_cast<volatile uint32_t*>(semaphore_address) = 0;
+            }
+        }
+    }
 
-    // auto send_teardown_message = [packet_header=payload_packet_header](
-    //     tt::fabric::WorkerToFabricEdmSender& fabric_connection,
-    //     uint64_t teardown_noc_addr,
-    //     size_t num_hops_on_fabric) {
-    // // Now that we are done, we need to notify all other congestion writers to teardown
-    //     packet_header->to_chip_unicast(static_cast<uint8_t>(num_hops_on_fabric));
-    //     packet_header->to_noc_unicast_atomic_inc(tt::fabric::NocUnicastAtomicIncCommandHeader{teardown_noc_addr, 1,
-    //     std::numeric_limits<uint16_t>::max()});
+    auto send_teardown_message = [packet_header = payload_packet_header](
+                                     tt::fabric::WorkerToFabricEdmSender& fabric_connection,
+                                     uint64_t teardown_noc_addr,
+                                     size_t num_hops_on_fabric) {
+        // Now that we are done, we need to notify all other congestion writers to teardown
+        packet_header->to_chip_unicast(static_cast<uint8_t>(num_hops_on_fabric));
+        packet_header->to_noc_unicast_atomic_inc(
+            tt::fabric::NocUnicastAtomicIncCommandHeader{teardown_noc_addr, 1, std::numeric_limits<uint16_t>::max()});
 
-    //     fabric_connection.wait_for_empty_write_slot();
-    //     fabric_connection.send_payload_flush_blocking_from_address(
-    //         (uint32_t)packet_header, sizeof(PACKET_HEADER_TYPE));
-    // };
-    // if (has_upstream_congestion_writer) {
-    //     send_teardown_message(fabric_connection.get_backward_connection(),
-    //     upstream_congestion_writer_teardown_noc_addr, num_hops_over_loopback_fabric_to_self);
-    // }
-    // for (size_t i = 0; i < num_downstream_congestion_writers; i++) {
-    //     uint64_t downstream_noc_addr = safe_get_noc_addr(
-    //         downstream_congestion_writer_noc_x_list_ptr[i],
-    //         downstream_congestion_writer_noc_y_list_ptr[i],
-    //         downstream_congestion_writer_teardown_semaphore_addresses_ptr[i],
-    //         0);
-    //     send_teardown_message(
-    //         fabric_connection.get_forward_connection(),
-    //         downstream_noc_addr,
-    //         downstream_congestion_writer_hop_distance_list_ptr[i]);
-    // }
+        fabric_connection.wait_for_empty_write_slot();
+        fabric_connection.send_payload_flush_blocking_from_address((uint32_t)packet_header, sizeof(PACKET_HEADER_TYPE));
+    };
+    if (has_upstream_congestion_writer) {
+        DPRINT << "Tearing down upstream congestion writer\n";
+        send_teardown_message(
+            fabric_connection.get_backward_connection(),
+            upstream_congestion_writer_teardown_noc_addr,
+            num_hops_over_loopback_fabric_to_self);
+        DPRINT << "Done tearing down upstream congestion writer\n";
+    }
+    for (size_t i = 0; i < num_downstream_congestion_writers; i++) {
+        DPRINT << "Tearing down downstream congestion writer " << (uint32_t)i << "\n";
+        uint64_t downstream_noc_addr = safe_get_noc_addr(
+            downstream_congestion_writer_noc_x_list_ptr[i],
+            downstream_congestion_writer_noc_y_list_ptr[i],
+            downstream_congestion_writer_teardown_semaphore_addresses_ptr[i],
+            0);
+        send_teardown_message(
+            fabric_connection.get_forward_connection(),
+            downstream_noc_addr,
+            downstream_congestion_writer_hop_distance_list_ptr[i]);
+        DPRINT << "Done tearing down downstream congestion writer " << (uint32_t)i << "\n";
+    }
 
     fabric_connection.close();
     noc_async_write_barrier();
+    DPRINT << "Done\n";
 }

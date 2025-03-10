@@ -730,12 +730,14 @@ FORCE_INLINE bool run_sender_channel_step(
             tt::fabric::validate(*packet_header);
             packet_header_recorder.record_packet_header(reinterpret_cast<volatile uint32_t*>(packet_header));
         }
+        DPRINT << "EDMS Sending packet\n";
         send_next_data(
             local_sender_channel,
             local_sender_channel_worker_interface,
             outbound_to_receiver_channel_pointers,
             remote_receiver_channel,
             sender_channel_index);
+        DPRINT << "\tdone\n";
     }
 
     // Process COMPLETIONs from receiver
@@ -824,7 +826,9 @@ FORCE_INLINE void run_receiver_channel_step(
         bool trid_flushed = receiver_channel_trid_tracker.transaction_flushed(receiver_buffer_index);
         if (can_send_to_all_local_chip_receivers && trid_flushed) {
             uint8_t trid = receiver_channel_trid_tracker.update_buffer_slot_to_next_trid_and_advance_trid_counter(receiver_buffer_index);
+            DPRINT << "EDM Fwd packet\n";
             receiver_forward_packet(packet_header, cached_routing_fields, downstream_edm_interface, trid);
+            DPRINT << "\tdone\n";
             wr_sent_ptr.increment();
         }
     }

@@ -844,7 +844,7 @@ void EdmLineFabricOpInterface::set_firmware_context_switch_interval(size_t inter
 }
 
 void EdmLineFabricOpInterface::initialize_kernel_ready_memory_location_to_unready() const {
-    std::vector<uint32_t> init_val(1, 99);
+    const std::vector<uint32_t> init_val = {99};
     auto get_erisc_l1_addr = [](const FabricEriscDatamoverBuilder& builder) {
         return builder.config.edm_channel_ack_addr;
     };
@@ -872,6 +872,12 @@ void EdmLineFabricOpInterface::initialize_kernel_ready_memory_location_to_unread
                         const auto result = tt::llrt::read_hex_vec_from_core(
                             builder.my_chip_id, {builder.my_noc_x, builder.my_noc_y}, erisc_l1_addr, sizeof(uint32_t));
                         landed = result.at(0) == init_val.at(0);
+                        log_info(
+                            tt::LogAlways,
+                            "landed: {}, result[0]: {}, init_val: {}",
+                            landed,
+                            result.at(0),
+                            init_val.at(0));
                     }
                     log_info(
                         tt::LogAlways,
@@ -906,7 +912,13 @@ void EdmLineFabricOpInterface::wait_for_kernel_ready() const {
                     while (!initialized) {
                         const auto result = tt::llrt::read_hex_vec_from_core(
                             builder.my_chip_id, {builder.my_noc_x, builder.my_noc_y}, erisc_l1_addr, sizeof(uint32_t));
-                        initialized = result.at(0) != kernel_uninitialized_value;
+                        initialized = (result.at(0) != kernel_uninitialized_value);
+                        log_info(
+                            tt::LogAlways,
+                            "initialized: {}, result[0]: {}, kernel_uninitialized_value: {}",
+                            initialized,
+                            result.at(0),
+                            kernel_uninitialized_value);
                     }
                     log_info(
                         tt::LogAlways,

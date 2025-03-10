@@ -17,6 +17,7 @@ static constexpr size_t DESTINATION_HOP_COUNT = 1;
 static constexpr size_t LAST_MCAST_DESTINATION = 1;
 
 FORCE_INLINE void print_pkt_hdr_routing_fields(volatile tt::fabric::PacketHeader *const packet_start) {
+    DPRINT << "here pkt hdr routing fields\n";
 #ifdef DEBUG_PRINT_ENABLED
     switch (packet_start->chip_send_type) {
         case tt::fabric::CHIP_UNICAST: {
@@ -33,6 +34,7 @@ FORCE_INLINE void print_pkt_hdr_routing_fields(volatile tt::fabric::PacketHeader
 }
 
 FORCE_INLINE void print_pkt_hdr_routing_fields(volatile tt::fabric::LowLatencyPacketHeader *const packet_start) {
+    DPRINT << "here pkt hdr routing fields\n";
     #ifdef DEBUG_PRINT_ENABLED
         DPRINT << "ROUTE:" << packet_start->routing_fields.value << "\n";
     #endif
@@ -40,6 +42,7 @@ FORCE_INLINE void print_pkt_hdr_routing_fields(volatile tt::fabric::LowLatencyPa
 
 template <typename T>
 FORCE_INLINE void print_pkt_header_noc_fields(volatile T *const packet_start) {
+    DPRINT << "here pkt hdr noc fields\n";
 #ifdef DEBUG_PRINT_ENABLED
     switch (packet_start->noc_send_type) {
         case tt::fabric::NocSendType::NOC_UNICAST_WRITE: {
@@ -60,10 +63,10 @@ FORCE_INLINE void print_pkt_header_noc_fields(volatile T *const packet_start) {
 FORCE_INLINE void print_pkt_header(volatile tt::fabric::PacketHeader *const packet_start) {
 #ifdef DEBUG_PRINT_ENABLED
     auto const& header = *packet_start;
-    DPRINT << "PKT: nsnd_t:" << (uint32_t) packet_start->noc_send_type <<
-        ", csnd_t:" << (uint32_t) packet_start->chip_send_type <<
-        ", src_chip:" << (uint32_t) packet_start->src_ch_id <<
-        ", payload_size_bytes:" << (uint32_t) packet_start->payload_size_bytes << "\n";
+    // DPRINT << "PKT: nsnd_t:" << (uint32_t) packet_start->noc_send_type <<
+    //     ", csnd_t:" << (uint32_t) packet_start->chip_send_type <<
+    //     ", src_chip:" << (uint32_t) packet_start->src_ch_id <<
+    //     ", payload_size_bytes:" << (uint32_t) packet_start->payload_size_bytes << "\n";
     print_pkt_hdr_routing_fields(packet_start);
     print_pkt_header_noc_fields(packet_start);
 #endif
@@ -72,9 +75,9 @@ FORCE_INLINE void print_pkt_header(volatile tt::fabric::PacketHeader *const pack
 FORCE_INLINE void print_pkt_header(volatile tt::fabric::LowLatencyPacketHeader *const packet_start) {
 #ifdef DEBUG_PRINT_ENABLED
     auto const& header = *packet_start;
-    DPRINT << "PKT: nsnd_t:" << (uint32_t) packet_start->noc_send_type <<
-        ", src_chip:" << (uint32_t) packet_start->src_ch_id <<
-        ", payload_size_bytes:" << (uint32_t) packet_start->payload_size_bytes << "\n";
+    // DPRINT << "PKT: nsnd_t:" << (uint32_t) packet_start->noc_send_type <<
+    //     ", src_chip:" << (uint32_t) packet_start->src_ch_id <<
+    //     ", payload_size_bytes:" << (uint32_t) packet_start->payload_size_bytes << "\n";
     print_pkt_hdr_routing_fields(packet_start);
     print_pkt_header_noc_fields(packet_start);
 #endif

@@ -74,7 +74,7 @@ public:
         arch_ = tt::get_arch_from_string(tt::test_utils::get_umd_arch_name());
 
         num_devices_ = tt::tt_metal::GetNumAvailableDevices();
-        if (arch_ == tt::ARCH::WORMHOLE_B0 and num_devices_ == 8 and tt::tt_metal::GetNumPCIeDevices() == 4) {
+        if (arch_ == tt::ARCH::WORMHOLE_B0 and num_devices_ >= 8) {  //} and tt::tt_metal::GetNumPCIeDevices() == 4) {
             mesh_device_ = MeshDevice::create(MeshDeviceConfig{.mesh_shape = MeshShape{2, 4}});
 
             std::vector<chip_id_t> ids(num_devices_, 0);
@@ -2705,16 +2705,17 @@ inline void RunPersistent1dFabricLatencyTest(
     for (IDevice* d : devices) {
         tt_metal::Synchronize(d, *ttnn::DefaultQueueId);
     }
+    log_info(tt::LogTest, "Dumping worker program perf results");
     for (size_t i = 0; i < programs.size(); i++) {
         auto d = devices_with_workers.at(i);
         auto& program = programs.at(i);
         tt_metal::DumpDeviceProfileResults(d, program);
     }
-    for (size_t i = 0; i < fabric_programs->size(); i++) {
-        auto d = devices_with_workers.at(i);
-        auto& program = fabric_programs.value().at(i);
-        tt_metal::DumpDeviceProfileResults(d, program);
-    }
+    // for (size_t i = 0; i < fabric_programs->size(); i++) {
+    //     auto d = devices_with_workers.at(i);
+    //     auto& program = fabric_programs.value().at(i);
+    //     tt_metal::DumpDeviceProfileResults(d, program);
+    // }
     log_info(tt::LogTest, "Finished");
 }
 
@@ -2728,78 +2729,97 @@ inline void RunPersistent1dFabricLatencyTest(
 //     T3000TestDevice test_fixture;
 //     auto view = test_fixture.mesh_device_->get_view();
 
-// std::vector<std::vector<std::tuple<IDevice*, size_t, bool>>> device_lines {
-//     {   // Line 0
-//         {view.get_device(MeshCoordinate(0, 0)), 0, true},
-//         {view.get_device(MeshCoordinate(0, 1)), 0, true},
-//         {view.get_device(MeshCoordinate(0, 2)), 0, true},
-//         {view.get_device(MeshCoordinate(0, 3)), 0, true},
-//         {view.get_device(MeshCoordinate(1, 3)), 0, false},
-//         {view.get_device(MeshCoordinate(2, 3)), 0, false}
-//     },
-//     {   // Line 1
-//         {view.get_device(MeshCoordinate(0, 7)), 1, true},
-//         {view.get_device(MeshCoordinate(0, 6)), 1, true},
-//         {view.get_device(MeshCoordinate(0, 5)), 1, true},
-//         {view.get_device(MeshCoordinate(0, 4)), 1, true},
-//         {view.get_device(MeshCoordinate(0, 3)), 1, false},
-//         {view.get_device(MeshCoordinate(1, 3)), 1, false},
-//         {view.get_device(MeshCoordinate(2, 3)), 1, false}
-//     },
-//     {   // Line 2
-//         {view.get_device(MeshCoordinate(1, 0)), 2, true},
-//         {view.get_device(MeshCoordinate(1, 1)), 2, true},
-//         {view.get_device(MeshCoordinate(1, 2)), 2, true},
-//         {view.get_device(MeshCoordinate(1, 3)), 2, true},
-//         {view.get_device(MeshCoordinate(2, 3)), 2, false}
-//     },
-//     {   // Line 3
-//         {view.get_device(MeshCoordinate(1, 7)), 0, true},
-//         {view.get_device(MeshCoordinate(1, 6)), 0, true},
-//         {view.get_device(MeshCoordinate(1, 5)), 0, true},
-//         {view.get_device(MeshCoordinate(1, 4)), 0, true},
-//         {view.get_device(MeshCoordinate(2, 4)), 0, false}
-//         {view.get_device(MeshCoordinate(2, 3)), 0, false}
-//     },
-//     {   // Line 4
-//         {view.get_device(MeshCoordinate(2, 0)), 3, true},
-//         {view.get_device(MeshCoordinate(2, 1)), 3, true},
-//         {view.get_device(MeshCoordinate(2, 2)), 3, true},
-//         {view.get_device(MeshCoordinate(2, 3)), 3, true},
-//     },
-//     {   // Line 5
-//         {view.get_device(MeshCoordinate(2, 7)), 1, true},
-//         {view.get_device(MeshCoordinate(2, 6)), 1, true},
-//         {view.get_device(MeshCoordinate(2, 5)), 1, true},
-//         {view.get_device(MeshCoordinate(2, 4)), 1, true},
-//         {view.get_device(MeshCoordinate(2, 3)), 1, false}
-//     },
-//     {   // Line 6
-//         {view.get_device(MeshCoordinate(3, 0)), 0, true},
-//         {view.get_device(MeshCoordinate(3, 1)), 0, true},
-//         {view.get_device(MeshCoordinate(3, 2)), 0, true},
-//         {view.get_device(MeshCoordinate(3, 3)), 0, true},
-//         {view.get_device(MeshCoordinate(2, 3)), 0, true},
-//     },
-//     {   // Line 7
-//         {view.get_device(MeshCoordinate(3, 7)), 1, true},
-//         {view.get_device(MeshCoordinate(3, 6)), 1, true},
-//         {view.get_device(MeshCoordinate(3, 5)), 1, true},
-//         {view.get_device(MeshCoordinate(3, 4)), 1, true},
-//         {view.get_device(MeshCoordinate(3, 3)), 1, false},
-//         {view.get_device(MeshCoordinate(2, 3)), 1, false},
+//     std::vector<std::vector<std::tuple<IDevice*, size_t, bool>>> device_lines {
+//         {   // Line 0
+//             {view.get_device(MeshCoordinate(0, 0)), 0, true},
+//             {view.get_device(MeshCoordinate(0, 1)), 0, true},
+//             {view.get_device(MeshCoordinate(0, 2)), 0, true},
+//             {view.get_device(MeshCoordinate(0, 3)), 0, true},
+//             {view.get_device(MeshCoordinate(1, 3)), 0, false},
+//             {view.get_device(MeshCoordinate(2, 3)), 0, false}
+//         },
+//         {   // Line 1
+//             {view.get_device(MeshCoordinate(0, 7)), 1, true},
+//             {view.get_device(MeshCoordinate(0, 6)), 1, true},
+//             {view.get_device(MeshCoordinate(0, 5)), 1, true},
+//             {view.get_device(MeshCoordinate(0, 4)), 1, true},
+//             {view.get_device(MeshCoordinate(0, 3)), 1, false},
+//             {view.get_device(MeshCoordinate(1, 3)), 1, false},
+//             {view.get_device(MeshCoordinate(2, 3)), 1, false}
+//         },
+//         {   // Line 2
+//             {view.get_device(MeshCoordinate(1, 0)), 2, true},
+//             {view.get_device(MeshCoordinate(1, 1)), 2, true},
+//             {view.get_device(MeshCoordinate(1, 2)), 2, true},
+//             {view.get_device(MeshCoordinate(1, 3)), 2, true},
+//             {view.get_device(MeshCoordinate(2, 3)), 2, false}
+//         },
+//         {   // Line 3
+//             {view.get_device(MeshCoordinate(1, 7)), 0, true},
+//             {view.get_device(MeshCoordinate(1, 6)), 0, true},
+//             {view.get_device(MeshCoordinate(1, 5)), 0, true},
+//             {view.get_device(MeshCoordinate(1, 4)), 0, true},
+//             {view.get_device(MeshCoordinate(2, 4)), 0, false}
+//             {view.get_device(MeshCoordinate(2, 3)), 0, false}
+//         },
+//         {   // Line 4
+//             {view.get_device(MeshCoordinate(2, 0)), 3, true},
+//             {view.get_device(MeshCoordinate(2, 1)), 3, true},
+//             {view.get_device(MeshCoordinate(2, 2)), 3, true},
+//             {view.get_device(MeshCoordinate(2, 3)), 3, true},
+//         },
+//         {   // Line 5
+//             {view.get_device(MeshCoordinate(2, 7)), 1, true},
+//             {view.get_device(MeshCoordinate(2, 6)), 1, true},
+//             {view.get_device(MeshCoordinate(2, 5)), 1, true},
+//             {view.get_device(MeshCoordinate(2, 4)), 1, true},
+//             {view.get_device(MeshCoordinate(2, 3)), 1, false}
+//         },
+//         {   // Line 6
+//             {view.get_device(MeshCoordinate(3, 0)), 0, true},
+//             {view.get_device(MeshCoordinate(3, 1)), 0, true},
+//             {view.get_device(MeshCoordinate(3, 2)), 0, true},
+//             {view.get_device(MeshCoordinate(3, 3)), 0, true},
+//             {view.get_device(MeshCoordinate(2, 3)), 0, true},
+//         },
+//         {   // Line 7
+//             {view.get_device(MeshCoordinate(3, 7)), 1, true},
+//             {view.get_device(MeshCoordinate(3, 6)), 1, true},
+//             {view.get_device(MeshCoordinate(3, 5)), 1, true},
+//             {view.get_device(MeshCoordinate(3, 4)), 1, true},
+//             {view.get_device(MeshCoordinate(3, 3)), 1, false},
+//             {view.get_device(MeshCoordinate(2, 3)), 1, false},
+//         }
+//     };
+
+//     std::unordered_map<chip_id_t, Program> programs;
+//     size_t num_devices = programs.size();
+//     IDevice* aggregation_device = view.get_device(MeshCoordinate(2,3));
+//     chip_id_t aggregation_device_id = aggregation_device->id();
+
+//     std::vector<tt::tt_metal::GlobalSemaphore> global_semaphores;
+//     std::vector<tt::tt_metal::DeviceAddr> global_semaphore_addresses;
+//     for (size_t i = 0; i < num_devices; i++) {
+//         global_semaphores.push_back(ttnn::global_semaphore::create_global_semaphore(
+//             aggregation_device,
+//             aggregation_device->worker_cores(HalProgrammableCoreType::TENSIX, SubDeviceId{0}),
+//             0,                             // initial value
+//             tt::tt_metal::BufferType::L1)  // buffer type
+//         );
+//         global_semaphore_addresses.push_back(ttnn::global_semaphore::get_global_semaphore_address(global_semaphores.at(i)));
 //     }
-// };
 
-//     std::vector<IDevice*> devices_ = {
-//         view.get_device(MeshCoordinate(0, 0)),
-//         view.get_device(MeshCoordinate(0, 1)),
-//         view.get_device(MeshCoordinate(0, 2)),
-//         view.get_device(MeshCoordinate(0, 3)),
-//         view.get_device(MeshCoordinate(1, 3)),
-//         view.get_device(MeshCoordinate(1, 2)),
-//         view.get_device(MeshCoordinate(1, 1)),
-//         view.get_device(MeshCoordinate(1, 0))
-//         };
-
+//     for (auto& device_line : device_lines) {
+//         setup_test_with_persistent_fabric(
+//             devices,
+//             dummy_worker_programs,
+//             subdevice_managers,
+//             fabric_programs,
+//             fabric_program_ptrs,
+//             fabric_handle,
+//             enable_persistent_fabric_mode,
+//             num_links,
+//             ttnn::ccl::FabricEriscDatamoverBuilder::default_firmware_context_switch_interval,
+//             true);
+//     }
 // }

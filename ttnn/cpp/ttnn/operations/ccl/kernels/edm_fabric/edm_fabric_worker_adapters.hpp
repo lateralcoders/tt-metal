@@ -233,6 +233,11 @@ struct WorkerToFabricEdmSenderImpl {
         const uint64_t edm_connection_handshake_noc_addr = dest_noc_addr_coord_only | edm_connection_handshake_l1_addr;
         noc_inline_dw_write(edm_connection_handshake_noc_addr, open_connection_value);
         noc_async_read_barrier();
+        DPRINT << "\tedm_buffer_index_addr: " << (uint32_t)*reinterpret_cast<volatile uint32_t*>(this->edm_buffer_index_addr) << "\n";
+        DPRINT << "\tedm_rdptr_addr: " << (uint64_t)edm_rdptr_addr << "\n";
+        DPRINT << "\tedm_rdptr: " << (uint32_t)*from_remote_buffer_slot_rdptr_ptr << "\n";
+        DPRINT << "\tthis->buffer_slot_wrptr_ptr: " << (uint32_t)this->buffer_slot_wrptr_ptr << "\n";
+        DPRINT << "\t*this->buffer_slot_wrptr_ptr: " << (uint32_t)*this->buffer_slot_wrptr_ptr << "\n";
 
         this->edm_buffer_addr = this->edm_buffer_base_addr + (this->get_buffer_slot_index() * (this->buffer_size_bytes + sizeof(eth_channel_sync_t)));
         ASSERT(*this->buffer_slot_wrptr_ptr < 20);
