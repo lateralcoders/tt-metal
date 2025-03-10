@@ -1031,6 +1031,9 @@ void kernel_main() {
     init_ptr_val<to_sender_0_pkts_completed_id>(0);
     init_ptr_val<to_sender_1_pkts_completed_id>(0);
 
+    // Set larger packet accept limit (default is 4)
+    eth_txq_reg_write(DEFAULT_ETH_TXQ, ETH_TXQ_DATA_PACKET_ACCEPT_AHEAD, 32);
+
     static constexpr size_t DEFAULT_HANDSHAKE_CONTEXT_SWITCH_TIMEOUT = 0;
     if constexpr (is_handshake_sender) {
         erisc::datamover::handshake::sender_side_start(handshake_addr, DEFAULT_HANDSHAKE_CONTEXT_SWITCH_TIMEOUT);
