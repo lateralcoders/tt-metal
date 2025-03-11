@@ -11,6 +11,8 @@
 #include <tt-metalium/bfloat16.hpp>
 #include <tt-metalium/logger.hpp>
 
+#include <variant>
+
 using namespace tt;
 
 namespace unit_tests_common::dram::test_dram {
@@ -20,7 +22,7 @@ struct DRAMConfig {
     std::string kernel_file;
     std::uint32_t dram_buffer_size;
     std::uint32_t l1_buffer_addr;
-    tt_metal::DataMovementConfig data_movement_cfg;
+    std::variant<tt_metal::DataMovementConfig, tt_metal::EthernetConfig> kernel_cfg;
 };
 
 bool dram_single_core_db(tt::tt_metal::DispatchFixture* fixture, tt_metal::IDevice* device) {
@@ -103,9 +105,23 @@ bool dram_single_core(
     auto output_dram_buffer = tt_metal::CreateBuffer(dram_config);
     uint32_t output_dram_buffer_addr = output_dram_buffer->address();
 
+    // zero out the output buffer
+    std::vector<uint32_t> zero_vec(src_vec.size(), 0);
+    tt_metal::detail::WriteToBuffer(output_dram_buffer, zero_vec);
+    tt::Cluster::instance().dram_barrier(device->id());
+
     log_debug(tt::LogVerif, "Creating kernel");
     // Create the kernel
-    auto dram_kernel = tt_metal::CreateKernel(program, cfg.kernel_file, cfg.core_range, cfg.data_movement_cfg);
+    KernelHandle dram_kernel;
+    if (std::holds_alternative<tt_metal::DataMovementConfig>(cfg.kernel_cfg)) {
+        dram_kernel = tt_metal::CreateKernel(
+            program, cfg.kernel_file, cfg.core_range, std::get<tt_metal::DataMovementConfig>(cfg.kernel_cfg));
+    } else {
+        std::cout << "Creating eth kernel on core " << cfg.core_range.str() << std::endl;
+        dram_kernel = tt_metal::CreateKernel(
+            program, cfg.kernel_file, cfg.core_range, std::get<tt_metal::EthernetConfig>(cfg.kernel_cfg));
+    }
+
     fixture->WriteBuffer(device, input_dram_buffer, src_vec);
 
     tt_metal::SetRuntimeArgs(
@@ -123,6 +139,12 @@ bool dram_single_core(
 
     std::vector<uint32_t> result_vec;
     fixture->ReadBuffer(device, output_dram_buffer, result_vec);
+
+    // if (result_vec != src_vec) {
+    //     for (int i = 0; i < result_vec.size(); i++) {
+    //         std::cout << "Expected " << src_vec.at(i) << " got " << result_vec.at(i) << std::endl;
+    //     }
+    // }
     return result_vec == src_vec;
 }
 
@@ -155,7 +177,14 @@ bool dram_single_core_pre_allocated(
     EXPECT_EQ(output_dram_buffer_addr, output_dram_pre_allocated_buffer_addr);
 
     // Create the kernel
-    auto dram_kernel = tt_metal::CreateKernel(program, cfg.kernel_file, cfg.core_range, cfg.data_movement_cfg);
+    KernelHandle dram_kernel;
+    if (std::holds_alternative<tt_metal::DataMovementConfig>(cfg.kernel_cfg)) {
+        dram_kernel = tt_metal::CreateKernel(
+            program, cfg.kernel_file, cfg.core_range, std::get<tt_metal::DataMovementConfig>(cfg.kernel_cfg));
+    } else {
+        dram_kernel = tt_metal::CreateKernel(
+            program, cfg.kernel_file, cfg.core_range, std::get<tt_metal::EthernetConfig>(cfg.kernel_cfg));
+    }
     fixture->WriteBuffer(device, input_dram_pre_allocated_buffer, src_vec);
 
     tt_metal::SetRuntimeArgs(
@@ -176,6 +205,7 @@ bool dram_single_core_pre_allocated(
 
     return result_vec == src_vec;
 }
+
 }  // namespace unit_tests_common::dram::test_dram
 
 namespace tt::tt_metal {
@@ -189,8 +219,9 @@ TEST_F(DispatchFixture, TensixDRAMLoopbackSingleCore) {
         .kernel_file = "tests/tt_metal/tt_metal/test_kernels/dataflow/dram_copy.cpp",
         .dram_buffer_size = buffer_size,
         .l1_buffer_addr = 400 * 1024,
-        .data_movement_cfg =
-            {.processor = tt_metal::DataMovementProcessor::RISCV_0, .noc = tt_metal::NOC::RISCV_0_default},
+        .kernel_cfg =
+            tt_metal::DataMovementConfig{
+                .processor = tt_metal::DataMovementProcessor::RISCV_0, .noc = tt_metal::NOC::RISCV_0_default},
     };
     for (unsigned int id = 0; id < devices_.size(); id++) {
         ASSERT_TRUE(
@@ -207,8 +238,9 @@ TEST_F(DispatchFixture, TensixDRAMLoopbackSingleCorePreAllocated) {
         .kernel_file = "tests/tt_metal/tt_metal/test_kernels/dataflow/dram_copy.cpp",
         .dram_buffer_size = buffer_size,
         .l1_buffer_addr = 400 * 1024,
-        .data_movement_cfg =
-            {.processor = tt_metal::DataMovementProcessor::RISCV_0, .noc = tt_metal::NOC::RISCV_0_default},
+        .kernel_cfg =
+            tt_metal::DataMovementConfig{
+                .processor = tt_metal::DataMovementProcessor::RISCV_0, .noc = tt_metal::NOC::RISCV_0_default},
     };
     for (unsigned int id = 0; id < devices_.size(); id++) {
         ASSERT_TRUE(unit_tests_common::dram::test_dram::dram_single_core_pre_allocated(
@@ -223,6 +255,53 @@ TEST_F(DispatchFixture, TensixDRAMLoopbackSingleCoreDB) {
     }
     for (unsigned int id = 0; id < devices_.size(); id++) {
         ASSERT_TRUE(unit_tests_common::dram::test_dram::dram_single_core_db(this, devices_.at(id)));
+    }
+}
+
+TEST_F(DispatchFixture, ActiveEthDRAMLoopbackSingleCore) {
+    uint32_t buffer_size = 2 * 1024 * 25;
+    std::vector<uint32_t> src_vec =
+        create_random_vector_of_bfloat16(buffer_size, 100, std::chrono::system_clock::now().time_since_epoch().count());
+    unit_tests_common::dram::test_dram::DRAMConfig dram_test_config = {
+        .core_range = {{0, 0}, {0, 0}},
+        .kernel_file = "tests/tt_metal/tt_metal/test_kernels/dataflow/dram_copy.cpp",
+        .dram_buffer_size = buffer_size,
+        .l1_buffer_addr = 0,
+        .kernel_cfg = tt_metal::EthernetConfig{.noc = tt_metal::NOC::NOC_0},
+    };
+    for (unsigned int id = 0; id < devices_.size(); id++) {
+        auto active_eth_core = *(devices_.at(id)->get_active_ethernet_cores(true).begin());
+        for (auto active_eth_core : devices_.at(id)->get_active_ethernet_cores(true)) {
+            dram_test_config.core_range = {active_eth_core, active_eth_core};
+            dram_test_config.l1_buffer_addr =
+                hal.get_dev_size(HalProgrammableCoreType::ACTIVE_ETH, HalL1MemAddrType::UNRESERVED);
+            ASSERT_TRUE(
+                unit_tests_common::dram::test_dram::dram_single_core(this, devices_.at(id), dram_test_config, src_vec));
+        }
+    }
+}
+
+TEST_F(DispatchFixture, IdleEthDRAMLoopbackSingleCore) {
+    uint32_t buffer_size = 2 * 1024 * 25;
+    std::vector<uint32_t> src_vec =
+        create_random_vector_of_bfloat16(buffer_size, 100, std::chrono::system_clock::now().time_since_epoch().count());
+    unit_tests_common::dram::test_dram::DRAMConfig dram_test_config = {
+        .core_range = {{0, 0}, {0, 0}},
+        .kernel_file = "tests/tt_metal/tt_metal/test_kernels/dataflow/dram_copy.cpp",
+        .dram_buffer_size = buffer_size,
+        .l1_buffer_addr = 0,
+        .kernel_cfg = tt_metal::EthernetConfig{.noc = tt_metal::NOC::NOC_0},
+    };
+    for (unsigned int id = 0; id < devices_.size(); id++) {
+        for (unsigned int id = 0; id < devices_.size(); id++) {
+            for (auto idle_eth_core : devices_.at(id)->get_inactive_ethernet_cores()) {
+                dram_test_config.core_range = {idle_eth_core, idle_eth_core};
+                dram_test_config.l1_buffer_addr =
+                    hal.get_dev_size(HalProgrammableCoreType::IDLE_ETH, HalL1MemAddrType::UNRESERVED);
+                ASSERT_TRUE(unit_tests_common::dram::test_dram::dram_single_core(
+                    this, devices_.at(id), dram_test_config, src_vec));
+            }
+        }
     }
 }
 
