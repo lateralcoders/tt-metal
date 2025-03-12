@@ -12,6 +12,7 @@
 #include <tt-metalium/logger.hpp>
 
 #include <variant>
+#include <optional>
 
 using namespace tt;
 
@@ -23,6 +24,7 @@ struct DRAMConfig {
     std::uint32_t dram_buffer_size;
     std::uint32_t l1_buffer_addr;
     std::variant<tt_metal::DataMovementConfig, tt_metal::EthernetConfig> kernel_cfg;
+    std::optional<uint32_t> dram_channel;
 };
 
 bool dram_single_core_db(tt::tt_metal::DispatchFixture* fixture, tt_metal::IDevice* device) {
@@ -122,23 +124,33 @@ bool dram_single_core(
             program, cfg.kernel_file, cfg.core_range, std::get<tt_metal::EthernetConfig>(cfg.kernel_cfg));
     }
 
-    fixture->WriteBuffer(device, input_dram_buffer, src_vec);
+    if (cfg.dram_channel.has_value()) {
+        TT_FATAL(
+            cfg.dram_channel.value() < device->num_dram_channels(),
+            "Illegal dram channel {}",
+            cfg.dram_channel.value());
+        tt_metal::detail::WriteToDeviceDRAMChannel(device, cfg.dram_channel.value(), input_dram_buffer_addr, src_vec);
+    } else {
+        fixture->WriteBuffer(device, input_dram_buffer, src_vec);
+    }
+
+    uint32_t bank = cfg.dram_channel.has_value() ? cfg.dram_channel.value() : 0;
 
     tt_metal::SetRuntimeArgs(
-            program,
-            dram_kernel,
-            cfg.core_range,
-            {cfg.l1_buffer_addr,
-            input_dram_buffer_addr,
-            (std::uint32_t)0,
-            output_dram_buffer_addr,
-            (std::uint32_t)0,
-            cfg.dram_buffer_size});
+        program,
+        dram_kernel,
+        cfg.core_range,
+        {cfg.l1_buffer_addr, input_dram_buffer_addr, bank, output_dram_buffer_addr, bank, cfg.dram_buffer_size});
 
     fixture->RunProgram(device, program);
 
     std::vector<uint32_t> result_vec;
-    fixture->ReadBuffer(device, output_dram_buffer, result_vec);
+    if (cfg.dram_channel.has_value()) {
+        fixture->ReadBuffer(device, output_dram_buffer, result_vec);
+    } else {
+        tt_metal::detail::ReadFromDeviceDRAMChannel(
+            device, cfg.dram_channel.value(), output_dram_buffer_addr, cfg.dram_buffer_size, result_vec);
+    }
 
     // if (result_vec != src_vec) {
     //     for (int i = 0; i < result_vec.size(); i++) {
