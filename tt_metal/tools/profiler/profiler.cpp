@@ -63,12 +63,20 @@ void DeviceProfiler::readRiscProfilerResults(
 
     if ((control_buffer[kernel_profiler::HOST_BUFFER_END_INDEX_BR_ER] == 0) &&
         (control_buffer[kernel_profiler::HOST_BUFFER_END_INDEX_NC] == 0)) {
-        return;
+        // std::cout << "control buffer zero" << std::endl;
+        // return;
     }
+
+    profile_buffer = tt::llrt::read_hex_vec_from_core(
+        device_id,
+        worker_core,
+        reinterpret_cast<uint64_t>(profiler_msg->control_vector),
+        kernel_profiler::PROFILER_L1_VECTOR_SIZE);
 
     int riscNum = 0;
     for (int riscEndIndex = 0; riscEndIndex < riscCount; riscEndIndex++) {
-        uint32_t bufferEndIndex = control_buffer[riscEndIndex];
+        // uint32_t bufferEndIndex = control_buffer[riscEndIndex];
+        uint32_t bufferEndIndex = kernel_profiler::PROFILER_L1_VECTOR_SIZE;
         uint32_t riscType;
         if (CoreType == HalProgrammableCoreType::TENSIX) {
             riscType = riscEndIndex;
@@ -76,7 +84,8 @@ void DeviceProfiler::readRiscProfilerResults(
             riscType = 5;
         }
         if (bufferEndIndex > 0) {
-            uint32_t bufferRiscShift = riscNum * PROFILER_FULL_HOST_VECTOR_SIZE_PER_RISC + startIndex;
+            // uint32_t bufferRiscShift = riscNum * PROFILER_FULL_HOST_VECTOR_SIZE_PER_RISC + startIndex;
+            uint32_t bufferRiscShift = 0;
             if ((control_buffer[kernel_profiler::DROPPED_ZONES] >> riscEndIndex) & 1) {
                 std::string warningMsg = fmt::format(
                     "Profiler DRAM buffers were full, markers were dropped! device {}, worker core {}, {}, Risc {},  "
@@ -101,6 +110,8 @@ void DeviceProfiler::readRiscProfilerResults(
             uint32_t opTime_L = 0;
             for (int index = bufferRiscShift; index < (bufferRiscShift + bufferEndIndex);
                  index += kernel_profiler::PROFILER_L1_MARKER_UINT32_SIZE) {
+                // std::cout << "index " << index << " profile_buffer[index] " << profile_buffer[index]
+                //           << " " <<     profile_buffer[index + 1] << std::endl;
                 if (!newRunStart && profile_buffer[index] == 0 && profile_buffer[index + 1] == 0) {
                     newRunStart = true;
                     opTime_H = 0;

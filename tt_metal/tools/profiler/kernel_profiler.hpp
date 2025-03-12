@@ -254,14 +254,14 @@ __attribute__((noinline)) void finish_profiler() {
                 uint64_t dram_bank_dst_noc_addr =
                     s.get_noc_addr(core_flat_id / profiler_core_count_per_dram, dram_offset);
 
-                profiler_noc_async_write_posted(
-                    reinterpret_cast<uint32_t>(profiler_data_buffer[hostIndex]), dram_bank_dst_noc_addr, send_size);
+                // profiler_noc_async_write_posted(
+                //     reinterpret_cast<uint32_t>(profiler_data_buffer[hostIndex]), dram_bank_dst_noc_addr, send_size);
             }
             profiler_control_buffer[deviceIndex] = 0;
         }
     }
 
-    profiler_noc_async_flush_posted_write();
+    // profiler_noc_async_flush_posted_write();
     profiler_control_buffer[RUN_COUNTER]++;
     profiler_control_buffer[PROFILER_DONE] = 1;
 #endif
@@ -301,12 +301,12 @@ __attribute__((noinline)) void quick_push() {
     uint32_t currEndIndex = profiler_control_buffer[HOST_BUFFER_END_INDEX_BR_ER + myRiscID] + wIndex;
 
     if (currEndIndex <= PROFILER_FULL_HOST_VECTOR_SIZE_PER_RISC) {
-        profiler_noc_async_write_posted(
-            reinterpret_cast<uint32_t>(profiler_data_buffer[myRiscID]),
-            dram_bank_dst_noc_addr,
-            wIndex * sizeof(uint32_t));
+        // profiler_noc_async_write_posted(
+        //     reinterpret_cast<uint32_t>(profiler_data_buffer[myRiscID]),
+        //     dram_bank_dst_noc_addr,
+        //     wIndex * sizeof(uint32_t));
 
-        profiler_noc_async_flush_posted_write();
+        // profiler_noc_async_flush_posted_write();
         profiler_control_buffer[HOST_BUFFER_END_INDEX_BR_ER + myRiscID] = currEndIndex;
 
     } else {

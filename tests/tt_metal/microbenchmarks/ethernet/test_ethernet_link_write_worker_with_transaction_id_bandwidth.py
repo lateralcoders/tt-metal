@@ -22,8 +22,8 @@ profiler_log_path = PROFILER_LOGS_DIR / PROFILER_DEVICE_SIDE_LOG
 
 FILE_NAME = PROFILER_LOGS_DIR / "test_ethernet_link_write_worker_bandwidth.csv"
 
-if os.path.exists(FILE_NAME):
-    os.remove(FILE_NAME)
+# if os.path.exists(FILE_NAME):
+#     os.remove(FILE_NAME)
 
 
 def run_erisc_write_worker_bw(

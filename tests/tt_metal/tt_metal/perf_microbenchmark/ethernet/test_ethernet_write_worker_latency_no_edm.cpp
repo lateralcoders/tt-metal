@@ -36,24 +36,23 @@ using namespace tt;
 using namespace tt::test_utils;
 using namespace tt::test_utils::df;
 
-class N300TestDevice {
+class TwoChipTestDevice {
 public:
-    N300TestDevice() : device_open(false) {
+    TwoChipTestDevice() : device_open(false) {
         arch_ = tt::get_arch_from_string(tt::test_utils::get_umd_arch_name());
 
         num_devices_ = tt::tt_metal::GetNumAvailableDevices();
-        if (arch_ == tt::ARCH::WORMHOLE_B0 and tt::tt_metal::GetNumAvailableDevices() >= 2 and
-            tt::tt_metal::GetNumPCIeDevices() >= 1) {
+        if (tt::tt_metal::GetNumAvailableDevices() >= 2 and tt::tt_metal::GetNumPCIeDevices() >= 1) {
             std::vector<chip_id_t> ids(num_devices_, 0);
             std::iota(ids.begin(), ids.end(), 0);
             devices_ = tt::tt_metal::detail::CreateDevices(ids);
 
         } else {
-            TT_THROW("This suite can only be run on N300 Wormhole devices");
+            TT_THROW("This suite can only be run on two chip systems");
         }
         device_open = true;
     }
-    ~N300TestDevice() {
+    ~TwoChipTestDevice() {
         if (device_open) {
             TearDown();
         }
@@ -234,7 +233,7 @@ int main(int argc, char** argv) {
     }
 
     log_info(tt::LogTest, "setting up test fixture");
-    N300TestDevice test_fixture;
+    TwoChipTestDevice test_fixture;
     log_info(tt::LogTest, "done setting up test fixture");
 
     const auto& device_0 = test_fixture.devices_.at(0);
@@ -247,6 +246,10 @@ int main(int argc, char** argv) {
     tt_xy_pair eth_sender_core;
     do {
         TT_ASSERT(eth_sender_core_iter != eth_sender_core_iter_end);
+        if (not tt::Cluster::instance().is_ethernet_link_up(device_0->id(), *eth_sender_core_iter)) {
+            eth_sender_core_iter++;
+            continue;
+        }
         std::tie(device_id, eth_receiver_core) = device_0->get_connected_ethernet_core(*eth_sender_core_iter);
         eth_sender_core = *eth_sender_core_iter;
         eth_sender_core_iter++;
