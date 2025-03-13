@@ -17,8 +17,6 @@
 #include <sstream>
 #include "metal_soc_descriptor.h"
 
-using namespace tt::tt_metal;  // test only
-
 namespace test_args {
 
 template <class T>

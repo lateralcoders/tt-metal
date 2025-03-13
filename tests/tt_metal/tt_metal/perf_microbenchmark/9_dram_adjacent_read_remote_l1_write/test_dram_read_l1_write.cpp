@@ -124,7 +124,7 @@ std::tuple<tt_metal::Program, tt_metal::KernelHandle, uint32_t> create_program(
         num_pages,
         num_pages_w_per_receiver);
 
-    uint32_t reader_cb_addr = device->allocator()->get_base_allocator_addr(HalMemType::L1);
+    uint32_t reader_cb_addr = device->allocator()->get_base_allocator_addr(tt::tt_metal::HalMemType::L1);
     tt_metal::CircularBufferConfig reader_cb_config =
         tt_metal::CircularBufferConfig(reader_cb_size, {{reader_cb_index, tile_format}})
             .set_page_size(reader_cb_index, single_tile_size);
@@ -340,7 +340,7 @@ uint32_t get_dram_bandwidth(tt::ARCH arch) {
 }
 
 void get_optimal_dram_bank_to_reader_assignment(
-    IDevice* device, std::vector<CoreCoord>& all_worker_cores_ordered, CoreRangeSet& all_worker_cores) {
+    tt::tt_metal::IDevice* device, std::vector<CoreCoord>& all_worker_cores_ordered, CoreRangeSet& all_worker_cores) {
     all_worker_cores_ordered = device->get_optimal_dram_bank_to_logical_worker_assignment();
     std::set<CoreRange> all_cores_set;
     for (const auto& worker_core : all_worker_cores_ordered) {

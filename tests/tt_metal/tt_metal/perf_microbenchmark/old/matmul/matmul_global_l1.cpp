@@ -374,8 +374,8 @@ tt_metal::Program create_program_mcast_in0_in1(
             .noc = tt_metal::NOC::RISCV_0_default,
             .compile_args = in0_receiver_compile_time_args});
 
-    KernelHandle mm_kernel_in1_receiver_writer_other_noc_setup_id = 0;
-    KernelHandle mm_kernel_in0_receiver_other_noc_setup_id = 0;
+    tt::tt_metal::KernelHandle mm_kernel_in1_receiver_writer_other_noc_setup_id = 0;
+    tt::tt_metal::KernelHandle mm_kernel_in0_receiver_other_noc_setup_id = 0;
 
     if (split_half) {
         mm_kernel_in1_receiver_writer_other_noc_setup_id = tt_metal::CreateKernel(
@@ -552,8 +552,8 @@ tt_metal::Program create_program_mcast_in0_in1(
     uint32_t last_block_padded_block_tiles_h_skip =
         (per_core_M / out_subblock_h - last_block_num_nonzero_subblocks_h) * (per_core_N * out_subblock_h);
 
-    std::vector<KernelHandle> reader_kernel_ids;
-    std::vector<KernelHandle> writer_kernel_ids;
+    std::vector<tt::tt_metal::KernelHandle> reader_kernel_ids;
+    std::vector<tt::tt_metal::KernelHandle> writer_kernel_ids;
     for (int core_idx_y = 0; core_idx_y < num_cores_r; core_idx_y++) {
         for (int core_idx_x = 0; core_idx_x < num_cores_c; core_idx_x++) {
             CoreCoord core = {(std::size_t)start_core_x + core_idx_x, (std::size_t)start_core_y + core_idx_y};
@@ -1049,9 +1049,9 @@ int main(int argc, char** argv) {
         uint32_t in0_buffer_size = single_tile_size * Mt * Kt;
         uint32_t in1_buffer_size = single_tile_size * Kt * Nt;
         uint32_t out_buffer_size = single_tile_size * Mt * Nt;
-        BufferType in0_buffer_type = (l1_in0 == 0) ? (BufferType::DRAM) : (BufferType::L1);
-        BufferType in1_buffer_type = (l1_in1 == 0) ? (BufferType::DRAM) : (BufferType::L1);
-        BufferType out_buffer_type = (l1_out == 0) ? (BufferType::DRAM) : (BufferType::L1);
+        auto in0_buffer_type = (l1_in0 == 0) ? (tt::tt_metal::BufferType::DRAM) : (tt::tt_metal::BufferType::L1);
+        auto in1_buffer_type = (l1_in1 == 0) ? (tt::tt_metal::BufferType::DRAM) : (tt::tt_metal::BufferType::L1);
+        auto out_buffer_type = (l1_out == 0) ? (tt::tt_metal::BufferType::DRAM) : (tt::tt_metal::BufferType::L1);
 
         tt_metal::InterleavedBufferConfig in0_config{
             .device = device, .size = in0_buffer_size, .page_size = single_tile_size, .buffer_type = in0_buffer_type};

@@ -244,7 +244,7 @@ int main(int argc, char** argv) {
             throw std::runtime_error("Invalid Device Id.");
         }
 
-        std::map<chip_id_t, IDevice*> device_map;
+        std::map<chip_id_t, tt::tt_metal::IDevice*> device_map;
 
         std::vector<chip_id_t> chip_ids;
         for (unsigned int id = 4; id < 36; id++) {
@@ -298,7 +298,8 @@ int main(int argc, char** argv) {
         CoreCoord router_logical_core;
         CoreCoord router_phys_core;
         CoreCoord gk_phys_core;
-        uint32_t routing_table_addr = hal.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED);
+        uint32_t routing_table_addr = tt::tt_metal::hal.get_dev_addr(
+            tt::tt_metal::HalProgrammableCoreType::TENSIX, tt::tt_metal::HalL1MemAddrType::UNRESERVED);
         uint32_t gk_interface_addr = routing_table_addr + sizeof(fabric_router_l1_config_t) * 4;
         uint32_t client_interface_addr = routing_table_addr + sizeof(fabric_router_l1_config_t) * 4;
         uint32_t client_pull_req_buf_addr = client_interface_addr + sizeof(fabric_pull_client_interface_t);

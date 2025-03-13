@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
         uint32_t num_cores_y = compute_with_storage_grid_size.y;
         auto
             [num_cores, all_cores, core_group_1, core_group_2, num_tiles_per_core_group_1, num_tiles_per_core_group_2] =
-                split_work_to_cores(compute_with_storage_grid_size, num_tiles);
+                tt::tt_metal::split_work_to_cores(compute_with_storage_grid_size, num_tiles);
 
         log_info(
             LogTest,
@@ -194,8 +194,8 @@ int main(int argc, char** argv) {
         ////////////////////////////////////////////////////////////////////////////
         std::vector<uint32_t> input_vec = create_random_vector_of_bfloat16(
             input_size, 100, std::chrono::system_clock::now().time_since_epoch().count());
-        auto input_buffer =
-            Buffer::create(device, input_vec.size() * sizeof(uint32_t), single_tile_size, tt_metal::BufferType::DRAM);
+        auto input_buffer = tt::tt_metal::Buffer::create(
+            device, input_vec.size() * sizeof(uint32_t), single_tile_size, tt_metal::BufferType::DRAM);
 
         ////////////////////////////////////////////////////////////////////////////
         //                      Application Setup
@@ -374,7 +374,7 @@ std::tuple<tt_metal::Program, tt_metal::KernelHandle, uint32_t> create_program(
 
     uint32_t cb_index = 0;
     uint32_t cb_tiles = num_reqs_at_a_time;
-    uint32_t cb_addr = device->allocator()->get_base_allocator_addr(HalMemType::L1);
+    uint32_t cb_addr = device->allocator()->get_base_allocator_addr(tt::tt_metal::HalMemType::L1);
     tt_metal::CircularBufferConfig cb_config =
         tt_metal::CircularBufferConfig(cb_tiles * single_tile_size, {{cb_index, tile_format}})
             .set_page_size(cb_index, single_tile_size);

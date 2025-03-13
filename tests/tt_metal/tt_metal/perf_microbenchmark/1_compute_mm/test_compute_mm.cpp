@@ -315,7 +315,7 @@ int main(int argc, char** argv) {
 
         int pci_express_slot = 0;
         tt_metal::IDevice* device = tt_metal::CreateDevice(pci_express_slot);
-        uint32_t l1_unreserved_base = device->allocator()->get_base_allocator_addr(HalMemType::L1);
+        uint32_t l1_unreserved_base = device->allocator()->get_base_allocator_addr(tt::tt_metal::HalMemType::L1);
         const tt::ARCH arch = device->arch();
         ////////////////////////////////////////////////////////////////////////////
         //                      Check Input Args
@@ -574,7 +574,7 @@ int main(int argc, char** argv) {
         for (uint32_t i = 0; i < num_tests; ++i) {
             if (fast_dispatch_mode == false) {
                 log_debug(LogTest, "calling detail::LaunchProgram");
-                detail::LaunchProgram(device, program);
+                tt::tt_metal::detail::LaunchProgram(device, program);
                 log_debug(LogTest, "detail::LaunchProgram done");
 
                 uint64_t t0_to_any_riscfw_end = get_t0_to_any_riscfw_end_cycle(device, program);
@@ -1693,10 +1693,10 @@ std::shared_ptr<tt::tt_metal::Buffer> create_and_transfer_data_sharded_cb(
     uint32_t size_bytes = Mt * tt::constants::TILE_HEIGHT * Nt * tt::constants::TILE_WIDTH * 2;
     uint32_t page_size_bytes = tt::constants::TILE_HW * 2;
 
-    ShardSpecBuffer shard_spec = ShardSpecBuffer(
+    auto shard_spec = tt::tt_metal::ShardSpecBuffer(
         CoreRangeSet(std::set<CoreRange>({CoreRange(CoreCoord(0, 0))})),
         {Mt * tt::constants::TILE_HEIGHT, Nt * tt::constants::TILE_WIDTH},
-        ShardOrientation::ROW_MAJOR,
+        tt::tt_metal::ShardOrientation::ROW_MAJOR,
         {tt::constants::TILE_HEIGHT, tt::constants::TILE_WIDTH},
         {Mt, Nt});
 
@@ -1707,7 +1707,7 @@ std::shared_ptr<tt::tt_metal::Buffer> create_and_transfer_data_sharded_cb(
         .device = device,
         .size = size_bytes,
         .page_size = page_size_bytes,
-        .buffer_layout = TensorMemoryLayout::HEIGHT_SHARDED,
+        .buffer_layout = tt::tt_metal::TensorMemoryLayout::HEIGHT_SHARDED,
         .shard_parameters = shard_spec});
     tt::tt_metal::detail::WriteToBuffer(input_buffer, activations);
 
@@ -1719,10 +1719,10 @@ std::shared_ptr<tt::tt_metal::Buffer> create_and_transfer_data_sharded_cb_fp8(
     uint32_t size_bytes = Mt * Nt * 1088;
     uint32_t page_size_bytes = 1088;
 
-    ShardSpecBuffer shard_spec = ShardSpecBuffer(
+    auto shard_spec = tt::tt_metal::ShardSpecBuffer(
         CoreRangeSet(std::set<CoreRange>({CoreRange(CoreCoord(0, 0))})),
         {Mt * tt::constants::TILE_HEIGHT, Nt * tt::constants::TILE_WIDTH},
-        ShardOrientation::ROW_MAJOR,
+        tt::tt_metal::ShardOrientation::ROW_MAJOR,
         {tt::constants::TILE_HEIGHT, tt::constants::TILE_WIDTH},
         {Mt, Nt});
 
@@ -1733,7 +1733,7 @@ std::shared_ptr<tt::tt_metal::Buffer> create_and_transfer_data_sharded_cb_fp8(
         .device = device,
         .size = size_bytes,
         .page_size = page_size_bytes,
-        .buffer_layout = TensorMemoryLayout::HEIGHT_SHARDED,
+        .buffer_layout = tt::tt_metal::TensorMemoryLayout::HEIGHT_SHARDED,
         .shard_parameters = shard_spec});
     tt::tt_metal::detail::WriteToBuffer(input_buffer, activations);
 

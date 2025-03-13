@@ -554,11 +554,11 @@ std::shared_ptr<tt::tt_metal::Buffer> create_and_transfer_data_sharded_cb(
     const vector<uint32_t>& input_vec,
     uint32_t ht,
     uint32_t wt,
-    BufferType buffer_type,
+    tt::tt_metal::BufferType buffer_type,
     tt::DataFormat data_format,
     CoreRangeSet cores,
     uint32_t num_receivers,
-    std::optional<DeviceAddr> address = std::nullopt) {
+    std::optional<tt::tt_metal::DeviceAddr> address = std::nullopt) {
     uint32_t size_bytes;
     uint32_t page_size_bytes;
     if (data_format == tt::DataFormat::Bfp8_b) {
@@ -569,10 +569,10 @@ std::shared_ptr<tt::tt_metal::Buffer> create_and_transfer_data_sharded_cb(
         page_size_bytes = tt::constants::TILE_HW * 2;
     }
 
-    ShardSpecBuffer shard_spec = ShardSpecBuffer(
+    auto shard_spec = tt::tt_metal::ShardSpecBuffer(
         cores,
         {ht * tt::constants::TILE_HEIGHT, wt * tt::constants::TILE_WIDTH / num_receivers},
-        ShardOrientation::ROW_MAJOR,
+        tt::tt_metal::ShardOrientation::ROW_MAJOR,
         {tt::constants::TILE_HEIGHT, tt::constants::TILE_WIDTH},
         {ht, wt});
 
@@ -585,10 +585,10 @@ std::shared_ptr<tt::tt_metal::Buffer> create_and_transfer_data_sharded_cb(
         .size = size_bytes,
         .page_size = page_size_bytes,
         .buffer_type = buffer_type,
-        .buffer_layout = TensorMemoryLayout::WIDTH_SHARDED,
+        .buffer_layout = tt::tt_metal::TensorMemoryLayout::WIDTH_SHARDED,
         .shard_parameters = shard_spec};
 
-    std::shared_ptr<Buffer> input_buffer;
+    std::shared_ptr<tt::tt_metal::Buffer> input_buffer;
     if (address.has_value()) {
         input_buffer = CreateBuffer(config, address.value());
     } else {
@@ -724,13 +724,13 @@ int main(int argc, char** argv) {
         std::vector<std::pair<CoreCoord, CoreRangeSet>> sender_receiver_core_mapping = {
             { dram_reader_core_coord, l1_receiver_core }
         };
-        std::vector<SubDeviceId> receiver_sub_device_ids = {};
+        std::vector<tt::tt_metal::SubDeviceId> receiver_sub_device_ids = {};
         if (use_sub_devices) {
-            SubDevice sender_sub_device = SubDevice(std::array{dram_reader_core});
-            SubDevice receiver_sub_device = SubDevice(std::array{l1_receiver_core});
-            SubDeviceManagerId sdm_id = device->create_sub_device_manager({sender_sub_device, receiver_sub_device}, 0);
+            tt::tt_metal::SubDevice sender_sub_device{std::array{dram_reader_core}};
+            tt::tt_metal::SubDevice receiver_sub_device{std::array{l1_receiver_core}};
+            tt::tt_metal::SubDeviceManagerId sdm_id = device->create_sub_device_manager({sender_sub_device, receiver_sub_device}, 0);
             device->load_sub_device_manager(sdm_id);
-            receiver_sub_device_ids.push_back(SubDeviceId{1});
+            receiver_sub_device_ids.push_back(tt::tt_metal::SubDeviceId{1});
         }
         ////////////////////////////////////////////////////////////////////////////
         //                      Input Setup

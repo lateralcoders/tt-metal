@@ -156,13 +156,15 @@ int main(int argc, char** argv) {
         virtual_offset.y,
         N_RANDS,
         rnd_delay_g,
-        tt::tt_metal::hal.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED),
         tt::tt_metal::hal.get_dev_addr(
-            mcast_from_eth_g ? HalProgrammableCoreType::IDLE_ETH : HalProgrammableCoreType::TENSIX,
-            HalL1MemAddrType::UNRESERVED),
+            tt::tt_metal::HalProgrammableCoreType::TENSIX, tt::tt_metal::HalL1MemAddrType::UNRESERVED),
+        tt::tt_metal::hal.get_dev_addr(
+            mcast_from_eth_g ? tt::tt_metal::HalProgrammableCoreType::IDLE_ETH
+                             : tt::tt_metal::HalProgrammableCoreType::TENSIX,
+            tt::tt_metal::HalL1MemAddrType::UNRESERVED),
     };
 
-    KernelHandle ucast_kernel = tt_metal::CreateKernel(
+    tt::tt_metal::KernelHandle ucast_kernel = tt_metal::CreateKernel(
         program,
         "tests/tt_metal/tt_metal/test_kernels/stress_noc_mcast.cpp",
         workers_logical,
@@ -196,14 +198,14 @@ int main(int argc, char** argv) {
 
     if (!ucast_only) {
         compile_args[0] = true;
-        KernelHandle mcast_kernel;
+        tt::tt_metal::KernelHandle mcast_kernel;
         if (mcast_from_eth_g) {
             mcast_kernel = tt_metal::CreateKernel(
                 program,
                 "tests/tt_metal/tt_metal/test_kernels/stress_noc_mcast.cpp",
                 mcast_logical,
                 tt_metal::EthernetConfig{
-                    .eth_mode = Eth::IDLE,
+                    .eth_mode = tt::tt_metal::Eth::IDLE,
                     .noc = noc_g,
                     .compile_args = compile_args,
                 });

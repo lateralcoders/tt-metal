@@ -184,7 +184,7 @@ int main(int argc, char** argv) {
         int device_id = 0;
         tt_metal::IDevice* device = tt_metal::CreateDevice(device_id);
 
-        CommandQueue& cq = device->command_queue();
+        tt::tt_metal::CommandQueue& cq = device->command_queue();
 
         tt_metal::Program program = tt_metal::CreateProgram();
 
@@ -301,7 +301,7 @@ int main(int argc, char** argv) {
             tt_metal::SetRuntimeArgs(program, dm0, worker_g.start_coord, {page_size_g});
         }
 
-        std::shared_ptr<Event> sync_event = std::make_shared<Event>();
+        std::shared_ptr<tt::tt_metal::Event> sync_event = std::make_shared<tt::tt_metal::Event>();
 
         CoreCoord w = device->worker_core_from_logical_core(worker_g.start_coord);
         log_info(LogTest, "Master core: {}", w.str());
@@ -370,7 +370,8 @@ int main(int argc, char** argv) {
                 uint32_t offset = 0;
                 uint32_t page = 0;
                 uint32_t* pcie_base = (uint32_t*)host_pcie_base + pcie_offset / sizeof(uint32_t);
-                uint32_t l1_unreserved_base = device->allocator()->get_base_allocator_addr(HalMemType::L1);
+                uint32_t l1_unreserved_base =
+                    device->allocator()->get_base_allocator_addr(tt::tt_metal::HalMemType::L1);
                 while (!done) {
                     if (hammer_write_reg_g) {
                         tt::Cluster::instance().write_reg(&addr, tt_cxy_pair(device->id(), w), l1_unreserved_base);
@@ -404,9 +405,10 @@ int main(int argc, char** argv) {
             vector<std::uint32_t> vec;
             vec.resize(page_size_g / sizeof(uint32_t));
 
-            CoreType core_type = dispatch_core_manager::instance().get_dispatch_core_type(device->id());
+            CoreType core_type = tt::tt_metal::dispatch_core_manager::instance().get_dispatch_core_type(device->id());
             uint32_t dispatch_l1_unreserved_base =
-                DispatchMemMap::get(core_type).get_device_command_queue_addr(CommandQueueDeviceAddrType::UNRESERVED);
+                tt::tt_metal::DispatchMemMap::get(core_type).get_device_command_queue_addr(
+                    tt::tt_metal::CommandQueueDeviceAddrType::UNRESERVED);
             for (int i = 0; i < warmup_iterations_g; i++) {
                 if (source_mem_g == 4) {
                     tt::Cluster::instance().read_core(

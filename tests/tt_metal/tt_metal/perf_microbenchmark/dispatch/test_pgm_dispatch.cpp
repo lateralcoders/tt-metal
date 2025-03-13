@@ -91,7 +91,7 @@ void init(const std::vector<std::string>& input_args, TestInfo& info) {
         log_info(LogTest, "  -a: number of runtime args (default {}, max {})", 0, MAX_ARGS);
         log_info(
             LogTest, " -ca: number of common runtime args multicast to all cores (default {}, max {})", 0, MAX_ARGS);
-        log_info(LogTest, "  -S: number of semaphores (default {}, max {})", 0, NUM_SEMAPHORES);
+        log_info(LogTest, "  -S: number of semaphores (default {}, max {})", 0, tt::tt_metal::NUM_SEMAPHORES);
         log_info(LogTest, " -kg: number of kernel groups (default 1)");
         log_info(LogTest, "  -g: use a 4 byte global variable (additional spans");
         log_info(LogTest, " -rs: run \"slow\" kernels for exactly <n> cycles (default 0)");
@@ -152,8 +152,8 @@ void init(const std::vector<std::string>& input_args, TestInfo& info) {
         log_fatal("Common Runtime arg count must be 0..{}", MAX_ARGS);
         exit(0);
     }
-    if (info.n_sems > NUM_SEMAPHORES) {
-        log_fatal("Sem count must be 0..{}", NUM_SEMAPHORES);
+    if (info.n_sems > tt::tt_metal::NUM_SEMAPHORES) {
+        log_fatal("Sem count must be 0..{}", tt::tt_metal::NUM_SEMAPHORES);
         exit(0);
     }
     if (info.n_kgs > core_x + 1) {
@@ -276,8 +276,8 @@ bool initialize_program(
                 "tests/tt_metal/tt_metal/perf_microbenchmark/dispatch/kernels/pgm_dispatch_perf.cpp",
                 *erisc_core,
                 tt::tt_metal::EthernetConfig{
-                    .eth_mode = Eth::RECEIVER,
-                    .noc = NOC::NOC_0,
+                    .eth_mode = tt::tt_metal::Eth::RECEIVER,
+                    .noc = tt::tt_metal::NOC::NOC_0,
                     .defines = defines,
                 });
             tt_metal::SetRuntimeArgs(program, eth_kernel, *erisc_core, args);
@@ -334,10 +334,11 @@ static int pgm_dispatch(T& state, TestInfo info) {
     bool pass = true;
     try {
         const chip_id_t device_id = 0;
-        DispatchCoreType dispatch_core_type = info.dispatch_from_eth ? DispatchCoreType::ETH : DispatchCoreType::WORKER;
+        tt::tt_metal::DispatchCoreType dispatch_core_type =
+            info.dispatch_from_eth ? tt::tt_metal::DispatchCoreType::ETH : tt::tt_metal::DispatchCoreType::WORKER;
         tt_metal::IDevice* device = tt_metal::CreateDevice(
-            device_id, 1, DEFAULT_L1_SMALL_SIZE, 900000000, DispatchCoreConfig{dispatch_core_type});
-        CommandQueue& cq = device->command_queue();
+            device_id, 1, DEFAULT_L1_SMALL_SIZE, 900000000, tt::tt_metal::DispatchCoreConfig{dispatch_core_type});
+        tt::tt_metal::CommandQueue& cq = device->command_queue();
 
         tt_metal::Program program[2];
         if (!initialize_program(info, device, program[0], info.slow_kernel_cycles)) {

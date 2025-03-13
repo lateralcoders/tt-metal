@@ -93,7 +93,7 @@ typedef struct test_board {
     std::vector<chip_id_t> available_chip_ids;
     std::vector<chip_id_t> physical_chip_ids;
     std::vector<std::pair<chip_id_t, std::vector<chip_id_t>>> tx_rx_map;
-    std::map<chip_id_t, IDevice*> device_handle_map;
+    std::map<chip_id_t, tt::tt_metal::IDevice*> device_handle_map;
     tt::tt_fabric::ControlPlane* control_plane;
     std::unique_ptr<tt::tt_fabric::ControlPlane> cp_owning_ptr;
     uint32_t num_chips_to_use;
@@ -1605,8 +1605,8 @@ int main(int argc, char **argv) {
             throw std::runtime_error("Test cannot run on specified device.");
         } */
 
-        uint32_t worker_unreserved_base_addr =
-            hal.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED);
+        uint32_t worker_unreserved_base_addr = tt::tt_metal::hal.get_dev_addr(
+            tt::tt_metal::HalProgrammableCoreType::TENSIX, tt::tt_metal::HalL1MemAddrType::UNRESERVED);
 
         if (metal_fabric_init_level == 0) {
             // manual init fabric
