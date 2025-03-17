@@ -11,6 +11,7 @@
 #include "assert.hpp"
 #include "dispatch/kernel_config/dispatch.hpp"
 #include "dispatch/kernel_config/prefetch.hpp"
+#include "tt_cluster.hpp"
 
 #include "fabric_router_vc.hpp"
 
@@ -23,8 +24,11 @@ void FabricRouterVC::GenerateDependentConfigs() {
     TT_ASSERT(
         upstream_kernels_.size() == downstream_kernels_.size(),
         "Fabric Router VC requires upstream.size() == downstream.size()");
-    const auto& control_plane = tt::Cluster::instance().get_control_plane();
-    TT_FATAL(control_plane, "Control plane is nullptr. Is fabric initialized yet?");
+    auto& cluster = tt::Cluster::instance();
+    const auto& control_plane = cluster.get_control_plane();
+    TT_FATAL(
+        cluster.get_fabric_config() != tt::FabricConfig::DISABLED && control_plane,
+        "Control plane is nullptr. Is fabric initialized yet?");
 
     // Zip upstream and downstream kernels together
     for (int i = 0; i < upstream_kernels_.size(); ++i) {

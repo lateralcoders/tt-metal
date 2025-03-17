@@ -121,11 +121,15 @@ void FDKernel::configure_kernel_variant(
     if (force_watcher_no_inline) {
         defines.insert({"WATCHER_NOINLINE", std::to_string(force_watcher_no_inline)});
     }
-    if (tt::llrt::RunTimeOptions::get_instance().watcher_dispatch_disabled()) {
+    const auto& rt_options = tt::llrt::RunTimeOptions::get_instance();
+    if (rt_options.watcher_dispatch_disabled()) {
         defines["FORCE_WATCHER_OFF"] = "1";
     }
     if (!DPrintServerReadsDispatchCores(device_->id())) {
         defines["FORCE_DPRINT_OFF"] = "1";
+    }
+    if (rt_options.get_fd_fabric()) {
+        defines["FVC_MODE_PULL"] = "1";
     }
     defines.insert(defines_in.begin(), defines_in.end());
 
