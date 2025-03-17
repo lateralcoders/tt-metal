@@ -5,6 +5,7 @@
 #pragma once
 
 #include "core_config.h"
+#include "fabric_host_interface.h"
 #include "risc_attribs.h"
 #include "dataflow_api.h"
 #include "tt_metal/fabric/hw/inc/tt_fabric_api.h"
@@ -120,18 +121,14 @@ enum CQNocSend {
     CQ_NOC_SEND = 1,
 };
 
-<<<<<<< HEAD
+// Returns true if this fabric_router_xy indicates to use the fabric path
+constexpr bool use_fabric(uint64_t fabric_router_xy) { return fabric_router_xy != 0xdeadbeef && fabric_router_xy != 0; }
+
 template <
     enum CQNocFlags flags,
     enum CQNocWait wait = CQ_NOC_WAIT,
     enum CQNocSend send = CQ_NOC_SEND,
     uint32_t cmd_buf = NCRISC_WR_CMD_BUF>
-=======
-// Returns true if this fabric_router_xy indicates to use the fabric path
-constexpr bool use_fabric(uint64_t fabric_router_xy) { return fabric_router_xy != 0xdeadbeef && fabric_router_xy != 0; }
-
-template <enum CQNocFlags flags, enum CQNocWait wait = CQ_NOC_WAIT, enum CQNocSend send = CQ_NOC_SEND>
->>>>>>> 3c5229cce5 (Save)
 FORCE_INLINE void cq_noc_async_write_with_state(
     uint32_t src_addr, uint64_t dst_addr, uint32_t size = 0, uint32_t ndests = 1) {
     if constexpr (wait) {
@@ -342,16 +339,16 @@ FORCE_INLINE void cb_relay_release_pages(T client_interface, uint32_t n) {
 #define FABRIC_ATOMIC_HEADER 0
 #endif
     if constexpr (use_fabric(fabric_router_noc_xy)) {
-        // tt::tt_fabric::fabric_atomic_inc(
-        //     client_interface,
-        //     fabric_router_noc_xy,
-        //     FABRIC_ATOMIC_HEADER,
-        //     mesh_id,
-        //     dev_id,
-        //     get_noc_addr_helper(noc_xy, get_semaphore<fd_core_type>(sem_id)),
-        //     n,
-        //     31);
-        noc_async_write_barrier();
+        tt::tt_fabric::fabric_atomic_inc<tt::tt_fabric::ClientDataMode::RAW_DATA>(
+            client_interface,
+            fabric_router_noc_xy,
+            FABRIC_ATOMIC_HEADER,
+            mesh_id,
+            dev_id,
+            get_noc_addr_helper(noc_xy, get_semaphore<fd_core_type>(sem_id)),
+            n,
+            31);
+        tt::tt_fabric::fabric_wait_for_pull_request_flushed(client_interface);
     } else {
         cb_release_pages<noc_idx, noc_xy, sem_id>(n);
     }
@@ -368,7 +365,14 @@ template <uint16_t mesh_id, uint16_t dev_id, uint64_t fabric_router_noc_xy, type
 void cb_relay_write_data(T client_interface, uint32_t src_addr, uint64_t dst, uint32_t length) {
     if constexpr (use_fabric(fabric_router_noc_xy)) {
         tt::tt_fabric::fabric_async_write<tt::tt_fabric::ClientDataMode::RAW_DATA, tt::tt_fabric::AsyncWriteMode::ALL>(
-            client_interface, fabric_router_noc_xy, src_addr, mesh_id, dev_id, dst, length);
+            client_interface,
+            fabric_router_noc_xy,
+            src_addr,
+            mesh_id,
+            dev_id,
+            dst,
+            length + tt::tt_fabric::PACKET_HEADER_SIZE_BYTES);
+        tt::tt_fabric::fabric_wait_for_pull_request_flushed(client_interface);
     } else {
         noc_async_write(src_addr, dst, length);
     }

@@ -104,7 +104,7 @@ static uint32_t write_offset[3];  // added to write address on non-host writes
 static uint32_t upstream_total_acquired_page_count;
 
 static auto client_interface =
-    reinterpret_cast<volatile tt_l1_ptr tt::tt_fabric::fabric_push_client_interface_t*>(client_interface_addr);
+    reinterpret_cast<volatile tt_l1_ptr tt::tt_fabric::fabric_pull_client_interface_t*>(client_interface_addr);
 
 constexpr uint32_t packed_write_max_multicast_sub_cmds =
     get_packed_write_max_multicast_sub_cmds(packed_write_max_unicast_sub_cmds);
@@ -287,10 +287,9 @@ template <uint32_t preamble_size>
 void relay_to_next_cb(
     uint32_t data_ptr, uint32_t length, uint32_t& block_noc_writes_to_clear, uint32_t block_next_start_addr[]) {
     static_assert(
-        preamble_size == 0 || preamble_size == sizeof(tt::packet_queue::dispatch_packet_header_t),
+        (use_fabric(fabric_router_noc_xy) && preamble_size == 0) || preamble_size == 0 ||
+            preamble_size == sizeof(tt::packet_queue::dispatch_packet_header_t),
         "Dispatcher preamble size must be 0 or sizeof(dispatch_packet_header_t)");
-
-    // static_assert(!(is_d_variant && !is_h_variant) || preamble_size == 0);
 
     // First page should be valid since it has the command
     ASSERT(data_ptr <= dispatch_cb_end - dispatch_cb_page_size);
@@ -359,8 +358,13 @@ void relay_to_next_cb(
                         // cq_noc_async_write_with_state<CQ_NOC_SnDL>(data_ptr, downstream_cb_data_ptr, orphan_size);
                         // noc_nonposted_writes_num_issued[noc_index]++;
                         // noc_nonposted_writes_acked[noc_index]++;
-                        noc_async_write<dispatch_cb_page_size>(
-                            data_ptr, get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr), orphan_size);
+                        // noc_async_write<dispatch_cb_page_size>(
+                        //     data_ptr, get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr), orphan_size);
+                        cb_relay_write_data<downstream_mesh_id, downstream_dev_id, fabric_router_noc_xy>(
+                            client_interface,
+                            data_ptr,
+                            get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr),
+                            orphan_size);
                         length -= orphan_size;
                         xfer_size -= orphan_size;
                         downstream_cb_data_ptr += orphan_size;
@@ -374,16 +378,15 @@ void relay_to_next_cb(
                     data_ptr = dispatch_cb_base;
                 }
 
-                DPRINT << "!!!!!!!!  !!!!!!!!! Release block relay\n";
-                // relay_cb_move_rd_to_next_block_and_release_pages<
-                //     upstream_noc_index,
-                //     upstream_noc_xy,
-                //     upstream_dispatch_cb_sem_id,
-                //     dispatch_cb_pages_per_block,
-                //     dispatch_cb_blocks,
-                //     upstream_mesh_id,
-                //     upstream_dev_id,
-                //     fabric_router_noc_xy>(client_interface, block_noc_writes_to_clear, rd_block_idx);
+                move_rd_to_next_block_and_release_pages<
+                    upstream_noc_index,
+                    upstream_noc_xy,
+                    upstream_dispatch_cb_sem_id,
+                    dispatch_cb_pages_per_block,
+                    dispatch_cb_blocks,
+                    upstream_mesh_id,
+                    upstream_dev_id,
+                    fabric_router_noc_xy>(client_interface, block_noc_writes_to_clear, rd_block_idx);
             }
 
             // Wait for dispatcher to supply a page (this won't go beyond the buffer end)
@@ -395,8 +398,10 @@ void relay_to_next_cb(
         // cq_noc_async_write_with_state<CQ_NOC_SnDL>(data_ptr, downstream_cb_data_ptr, xfer_size);
         // noc_nonposted_writes_num_issued[noc_index]++;
         // noc_nonposted_writes_acked[noc_index]++;
-        noc_async_write<dispatch_cb_page_size>(
-            data_ptr, get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr), xfer_size);
+        // noc_async_write<dispatch_cb_page_size>(
+        //     data_ptr, get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr), xfer_size);
+        cb_relay_write_data<downstream_mesh_id, downstream_dev_id, fabric_router_noc_xy>(
+            client_interface, data_ptr, get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr), xfer_size);
 
         cb_relay_release_pages<
             my_noc_index,
@@ -961,7 +966,7 @@ static void process_wait() {
     if (wait_stream) {
         volatile uint32_t* sem_addr = reinterpret_cast<volatile uint32_t*>(
             STREAM_REG_ADDR(stream, STREAM_REMOTE_DEST_BUF_SPACE_AVAILABLE_REG_INDEX));
-        DPRINT << " DISPATCH WAIT STREAM " << HEX() << stream << DEC() << " count " << count << ENDL();
+        // DPRINT << " DISPATCH WAIT STREAM " << HEX() << stream << DEC() << " count " << count << ENDL();
         do {
             IDLE_ERISC_HEARTBEAT_AND_RETURN(heartbeat);
         } while (!stream_wrap_ge(*sem_addr, count));
@@ -1308,6 +1313,11 @@ void kernel_main() {
         cq_write_interface.completion_fifo_wr_ptr = completion_queue_wr_ptr_and_toggle & 0x7fffffff;
         cq_write_interface.completion_fifo_wr_toggle = completion_queue_wr_ptr_and_toggle >> 31;
     }
+
+    if constexpr (use_fabric(fabric_router_noc_xy)) {
+        tt::tt_fabric::fabric_endpoint_init(client_interface, 0 /*unused*/);
+    }
+
     bool done = false;
     uint32_t heartbeat = 0;
     while (!done) {
@@ -1379,5 +1389,5 @@ void kernel_main() {
 
     noc_async_full_barrier();
 
-    // DPRINT << "dispatch_" << is_h_variant << is_d_variant << ": out" << ENDL();
+    DPRINT << "dispatch_" << is_h_variant << is_d_variant << ": out" << ENDL();
 }

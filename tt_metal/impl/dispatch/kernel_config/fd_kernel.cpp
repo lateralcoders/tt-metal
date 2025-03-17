@@ -121,7 +121,7 @@ void FDKernel::configure_kernel_variant(
     if (force_watcher_no_inline) {
         defines.insert({"WATCHER_NOINLINE", std::to_string(force_watcher_no_inline)});
     }
-    const auto& rt_options = tt::llrt::RunTimeOptions::get_instance();
+    auto& rt_options = tt::llrt::RunTimeOptions::get_instance();
     if (rt_options.watcher_dispatch_disabled()) {
         defines["FORCE_WATCHER_OFF"] = "1";
     }

@@ -169,7 +169,7 @@ static uint32_t block_next_start_addr[cmddat_q_blocks];
 static uint32_t rd_block_idx = 0;
 static uint32_t upstream_total_acquired_page_count = 0;
 static auto client_interface =
-    reinterpret_cast<volatile tt_l1_ptr tt::tt_fabric::fabric_push_client_interface_t*>(client_interface_addr);
+    reinterpret_cast<volatile tt_l1_ptr tt::tt_fabric::fabric_pull_client_interface_t*>(client_interface_addr);
 
 // Feature to stall the prefetcher, mainly for ExecBuf impl which reuses CmdDataQ
 static enum StallState { STALL_NEXT = 2, STALLED = 1, NOT_STALLED = 0 } stall_state = NOT_STALLED;
@@ -1444,7 +1444,13 @@ void kernel_main_d() {
         // TODO: evaluate less costly free pattern (blocks?)
         uint32_t total_length = length + sizeof(CQPrefetchHToPrefetchDHeader);
         uint32_t pages_to_free = (total_length + cmddat_q_page_size - 1) >> cmddat_q_log_page_size;
-        cb_release_pages<my_noc_index, upstream_noc_xy, upstream_cb_sem_id>(pages_to_free);
+        cb_relay_release_pages<
+            my_noc_index,
+            upstream_noc_xy,
+            upstream_cb_sem_id,
+            upstream_mesh_id,
+            upstream_dev_id,
+            fabric_router_noc_xy>(client_interface, pages_to_free);
 
         // Move to next page
         cmd_ptr = round_up_pow2(cmd_ptr, cmddat_q_page_size);
@@ -1454,9 +1460,12 @@ void kernel_main_d() {
     // in case prefetch_d is connected to a depacketizing stage.
     // TODO: This should be replaced with a signal similar to what packetized
     // components use.
-    // DPRINT << "prefetch_d done" << ENDL();
-    noc_semaphore_inc(
-        get_noc_addr_helper(upstream_noc_xy, get_semaphore<fd_core_type>(upstream_cb_sem_id)), 0x80000000);
+    if constexpr (use_fabric(fabric_router_noc_xy)) {
+        // fabric teardown is done from the host side
+    } else {
+        noc_semaphore_inc(
+            get_noc_addr_helper(upstream_noc_xy, get_semaphore<fd_core_type>(upstream_cb_sem_id)), 0x80000000);
+    }
 }
 
 void kernel_main_hd() {
@@ -1483,6 +1492,9 @@ void kernel_main_hd() {
 
 void kernel_main() {
     DPRINT << "prefetcher_" << is_h_variant << is_d_variant << ": start" << ENDL();
+    if constexpr (use_fabric(fabric_router_noc_xy)) {
+        tt::tt_fabric::fabric_endpoint_init(client_interface, 0 /*unused*/);
+    }
 
     if (is_h_variant and is_d_variant) {
         kernel_main_hd();
