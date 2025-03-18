@@ -379,6 +379,7 @@ void Device::initialize_firmware(const HalProgrammableCoreType &core_type, CoreC
 
     switch (core_type) {
         case HalProgrammableCoreType::TENSIX: {
+            std::cout << "init fw for " << virtual_core.str() << std::endl;
             for (uint32_t processor_class = 0; processor_class < processor_class_count; processor_class++) {
                 auto [build_idx, num_build_states] =
                     BuildEnvManager::get_instance().get_build_index_and_state_count(core_type_idx, processor_class);
@@ -618,9 +619,9 @@ void Device::initialize_and_launch_firmware() {
     core_info->noc_dram_addr_base = 0;
     core_info->noc_dram_addr_end = soc_d.dram_core_size;
 
-    const std::vector<tt::umd::CoreCoord>& pcie_cores = soc_d.get_cores(CoreType::PCIE, soc_d.get_umd_coord_system());
-    const std::vector<tt::umd::CoreCoord>& dram_cores = soc_d.get_cores(CoreType::DRAM, soc_d.get_umd_coord_system());
-    const std::vector<tt::umd::CoreCoord>& eth_cores = soc_d.get_cores(CoreType::ETH, CoordSystem::PHYSICAL);
+    auto pcie_cores = soc_d.get_cores(CoreType::PCIE, soc_d.get_umd_coord_system());
+    auto dram_cores = soc_d.get_cores(CoreType::DRAM, soc_d.get_umd_coord_system());
+    auto eth_cores = soc_d.get_cores(CoreType::ETH, CoordSystem::PHYSICAL);
     // The SOC descriptor can list a dram core multiple times, depending on how GDDR is assigned to banks
     // Get a list of unique DRAM cores.
     std::unordered_set<CoreCoord> unique_dram_cores(dram_cores.begin(), dram_cores.end());
@@ -642,7 +643,7 @@ void Device::initialize_and_launch_firmware() {
     // because it appears as a mixed use of physical and virtual To workaround this, skip over populating
     // `non_worker_cores` for BH DRAM when virtualization is enabled
     int non_worker_cores_idx = 0;
-    for (const tt::umd::CoreCoord& core : pcie_cores) {
+    for (tt::umd::CoreCoord core : pcie_cores) {
         std::cout << "pcie core is " << core.str() << " virtual is "
                   << tt::Cluster::instance().get_virtual_coordinate_from_physical_coordinates(this->id(), core).str()
                   << std::endl;
@@ -653,14 +654,14 @@ void Device::initialize_and_launch_firmware() {
     }
     bool skip_physical_dram = this->arch() == ARCH::BLACKHOLE and hal.is_coordinate_virtualization_enabled();
     if (not skip_physical_dram) {
-        for (const tt::umd::CoreCoord& core : dram_cores) {
+        for (tt::umd::CoreCoord core : dram_cores) {
             std::cout << "dram core is " << core.str() << " virtual is "
                     << tt::Cluster::instance().get_virtual_coordinate_from_physical_coordinates(this->id(), core).str()
                     << std::endl;
             core_info->non_worker_cores[non_worker_cores_idx++] = {core.x, core.y, AddressableCoreType::DRAM};
         }
     }
-    for (const tt::umd::CoreCoord& core : eth_cores) {
+    for (tt::umd::CoreCoord core : eth_cores) {
         core_info->non_worker_cores[non_worker_cores_idx++] = {core.x, core.y, AddressableCoreType::ETH};
     }
 
@@ -673,7 +674,7 @@ void Device::initialize_and_launch_firmware() {
     if (hal.is_coordinate_virtualization_enabled()) {
         // Track Virtual Non Worker Cores separately
         uint32_t virtual_non_worker_cores_idx = 0;
-        for (const tt::umd::CoreCoord& core : eth_cores) {
+        for (tt::umd::CoreCoord core : eth_cores) {
             auto virtual_core = this->virtual_core_from_physical_core({core.x, core.y});
             core_info->virtual_non_worker_cores[virtual_non_worker_cores_idx++] = {virtual_core.x, virtual_core.y, AddressableCoreType::ETH};
         }
@@ -958,6 +959,7 @@ void Device::init_command_queue_device() {
         this->compile_command_queue_programs();
     }
 
+    std::cout << "num cq program " << this->command_queue_programs_.size() << std::endl;
     TT_ASSERT(this->command_queue_programs_.size() == 1);
     this->configure_command_queue_programs();
     Program& command_queue_program = *this->command_queue_programs_[0];
@@ -1057,6 +1059,8 @@ bool Device::close() {
         TT_THROW("Cannot close device {} that has not been initialized!", this->id_);
     }
 
+    std::cout << "in close" << std::endl;
+
     for (const auto& hw_command_queue : command_queues_) {
         if (hw_command_queue->sysmem_manager().get_bypass_mode()) {
             hw_command_queue->record_end();
@@ -1080,6 +1084,8 @@ bool Device::close() {
 
     DprintServerDetach(this);
     watcher_detach(this);
+
+    std::cout << "watcher de" << std::endl;
 
     // Assert worker cores
     CoreCoord grid_size = this->logical_grid_size();
@@ -1109,6 +1115,8 @@ bool Device::close() {
         }
     }
 
+    std::cout << "at this" << std::endl;
+
     if (this->id_ != mmio_device_id) {
         for (auto it = not_done_dispatch_cores[mmio_device_id].begin(); it != not_done_dispatch_cores[mmio_device_id].end(); it++) {
             const auto &virtual_core = *it;
@@ -1122,6 +1130,8 @@ bool Device::close() {
     }
 
     tt::Cluster::instance().l1_barrier(id_);
+
+    std::cout << "l1 barrier" << std::endl;
 
     this->compute_cores_.clear();
     this->storage_only_cores_.clear();

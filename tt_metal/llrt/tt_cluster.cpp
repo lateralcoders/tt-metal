@@ -226,6 +226,9 @@ void Cluster::initialize_device_drivers() {
 
     for (const auto &[mmio_device_id, controlled_devices] : this->devices_grouped_by_assoc_mmio_device_) {
         this->assign_mem_channels_to_devices(mmio_device_id, controlled_devices);
+        auto masks = this->driver_->get_soc_descriptor(mmio_device_id).harvesting_masks;
+        std::cout << "tensix " << std::hex << masks.tensix_harvesting_mask << " dram " << masks.dram_harvesting_mask
+                  << " eth " << masks.eth_harvesting_mask << std::dec << std::endl;
     }
 
     tt_device_params default_params;
