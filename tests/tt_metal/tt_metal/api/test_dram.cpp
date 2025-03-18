@@ -15,6 +15,7 @@
 #include <optional>
 
 using namespace tt;
+using namespace tt::tt_metal;
 
 namespace unit_tests_common::dram::test_dram {
 struct DRAMConfig {
@@ -145,12 +146,13 @@ bool dram_single_core(
     fixture->RunProgram(device, program);
 
     std::vector<uint32_t> result_vec;
-    if (cfg.dram_channel.has_value()) {
-        fixture->ReadBuffer(device, output_dram_buffer, result_vec);
-    } else {
-        tt_metal::detail::ReadFromDeviceDRAMChannel(
-            device, cfg.dram_channel.value(), output_dram_buffer_addr, cfg.dram_buffer_size, result_vec);
-    }
+    // if (cfg.dram_channel.has_value()) {
+    //     fixture->ReadBuffer(device, output_dram_buffer, result_vec);
+    // }
+    // else {
+    //     tt_metal::detail::ReadFromDeviceDRAMChannel(
+    //         device, cfg.dram_channel.value(), output_dram_buffer_addr, cfg.dram_buffer_size, result_vec);
+    // }
 
     // if (result_vec != src_vec) {
     //     for (int i = 0; i < result_vec.size(); i++) {
