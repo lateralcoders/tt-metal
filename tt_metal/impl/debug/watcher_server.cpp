@@ -277,8 +277,8 @@ void watcher_init(IDevice* device) {
             }
 
             for (CoreType core_type : {CoreType::WORKER, CoreType::ETH}) {
-                const std::vector<CoreCoord>& delayed_cores =
-                    tt::llrt::RunTimeOptions::get_instance().get_feature_cores(delay_feature).at(core_type);
+                std::vector<CoreCoord>& delayed_cores =
+                    tt::llrt::RunTimeOptions::get_instance().get_feature_cores(delay_feature)[core_type];
                 for (tt_xy_pair logical_core : delayed_cores) {
                     CoreCoord virtual_core;
                     bool valid_logical_core = true;
