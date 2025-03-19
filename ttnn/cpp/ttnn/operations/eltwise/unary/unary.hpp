@@ -115,6 +115,22 @@ struct Eqz {
         const std::optional<Tensor>& optional_output_tensor = std::nullopt);
 };
 
+struct Ltz {
+    static Tensor invoke(
+        QueueId queue_id,
+        const Tensor& input_tensor,
+        const std::optional<MemoryConfig>& memory_config = std::nullopt,
+        const std::optional<Tensor>& optional_output_tensor = std::nullopt);
+};
+
+struct Gtz {
+    static Tensor invoke(
+        QueueId queue_id,
+        const Tensor& input_tensor,
+        const std::optional<MemoryConfig>& memory_config = std::nullopt,
+        const std::optional<Tensor>& optional_output_tensor = std::nullopt);
+};
+
 struct Floor {
     static Tensor invoke(
         QueueId queue_id,
@@ -218,7 +234,6 @@ REGISTER_UNARY_OPERATION(erfinv, ERFINV);
 REGISTER_UNARY_OPERATION(exp2, EXP2);
 REGISTER_UNARY_OPERATION(expm1, EXPM1);
 REGISTER_UNARY_OPERATION(gez, GEZ);
-REGISTER_UNARY_OPERATION(gtz, GTZ);
 REGISTER_UNARY_OPERATION(i0, I0);
 REGISTER_UNARY_OPERATION(i1, I1);
 REGISTER_UNARY_OPERATION(isfinite, ISFINITE);
@@ -231,7 +246,6 @@ REGISTER_UNARY_OPERATION(log, LOG);
 REGISTER_UNARY_OPERATION(log10, LOG10);
 REGISTER_UNARY_OPERATION(log2, LOG2);
 REGISTER_UNARY_OPERATION(logical_not, LOGICAL_NOT_UNARY);
-REGISTER_UNARY_OPERATION(ltz, LTZ);
 REGISTER_UNARY_OPERATION(neg, NEG);
 REGISTER_UNARY_OPERATION(nez, NEZ);
 REGISTER_UNARY_OPERATION(reciprocal, RECIP);
@@ -283,6 +297,8 @@ constexpr auto identity =
     ttnn::register_operation_with_auto_launch_op<"ttnn::identity", ttnn::operations::unary::Identity>();
 constexpr auto abs = ttnn::register_operation_with_auto_launch_op<"ttnn::abs", ttnn::operations::unary::Abs>();
 constexpr auto eqz = ttnn::register_operation_with_auto_launch_op<"ttnn::eqz", ttnn::operations::unary::Eqz>();
+constexpr auto ltz = ttnn::register_operation_with_auto_launch_op<"ttnn::ltz", ttnn::operations::unary::Ltz>();
+constexpr auto gtz = ttnn::register_operation_with_auto_launch_op<"ttnn::gtz", ttnn::operations::unary::Gtz>();
 constexpr auto floor =
     ttnn::register_operation_with_auto_launch_op<"ttnn::floor", ttnn::operations::unary::Floor>();
 constexpr auto ceil = ttnn::register_operation_with_auto_launch_op<"ttnn::ceil", ttnn::operations::unary::Ceil>();

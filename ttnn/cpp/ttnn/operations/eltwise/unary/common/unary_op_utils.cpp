@@ -65,6 +65,8 @@ std::string get_macro_definition(UnaryOpType op_type) {
         case UnaryOpType::FMOD: return "SFPU_OP_FMOD_INCLUDE";
         case UnaryOpType::FILL: return "SFPU_OP_FILL_INCLUDE";
         case UnaryOpType::ROUND: return "SFPU_OP_ROUND_INCLUDE";
+        case UnaryOpType::LTZ_INT32:
+        case UnaryOpType::GTZ_INT32:
         case UnaryOpType::EQZ_INT32: return "SFPU_OP_COMP_INT_INCLUDE";
         default: return "SFPU_OP_COMPUTE_KERNEL_API_INCLUDE";
     };
@@ -313,7 +315,13 @@ std::pair<string, string> get_op_init_and_func_default(UnaryOpType op_type, std:
             break;
         case UnaryOpType::NEZ: op_init_and_name = {"nez_tile_init();", fmt::format("nez_tile({});", idst)}; break;
         case UnaryOpType::LTZ: op_init_and_name = {"ltz_tile_init();", fmt::format("ltz_tile({});", idst)}; break;
+        case UnaryOpType::LTZ_INT32:
+            op_init_and_name = {"ltz_int_tile_init();", fmt::format("ltz_int_tile({});", idst)};
+            break;
         case UnaryOpType::GTZ: op_init_and_name = {"gtz_tile_init();", fmt::format("gtz_tile({});", idst)}; break;
+        case UnaryOpType::GTZ_INT32:
+            op_init_and_name = {"gtz_int_tile_init();", fmt::format("gtz_int_tile({});", idst)};
+            break;
         case UnaryOpType::LEZ: op_init_and_name = {"lez_tile_init();", fmt::format("lez_tile({});", idst)}; break;
         case UnaryOpType::GEZ: op_init_and_name = {"gez_tile_init();", fmt::format("gez_tile({});", idst)}; break;
         case UnaryOpType::EXP2: op_init_and_name = {"exp2_tile_init();", fmt::format("exp2_tile({});", idst)}; break;

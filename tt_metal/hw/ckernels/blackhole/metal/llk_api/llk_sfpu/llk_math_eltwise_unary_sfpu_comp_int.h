@@ -22,4 +22,23 @@ inline void llk_math_eltwise_unary_sfpu_eqz_int(uint dst_index, int vector_mode 
     llk_math_eltwise_unary_sfpu_params<APPROXIMATE>(ckernel::sfpu::calculate_eqz<APPROXIMATE>, dst_index, vector_mode);
 }
 
+template <bool APPROXIMATE>
+inline void llk_math_eltwise_unary_sfpu_ltz_int_init() {
+    llk_math_eltwise_unary_sfpu_init<SfpuType::ltz_int32, APPROXIMATE>();
+}
+
+template <bool APPROXIMATE>
+inline void llk_math_eltwise_unary_sfpu_ltz_int(uint dst_index, int vector_mode = (int)VectorMode::RC) {
+    llk_math_eltwise_unary_sfpu_params<APPROXIMATE>(ckernel::sfpu::calculate_ltz<APPROXIMATE>, dst_index, vector_mode);
+}
+
+template <bool APPROXIMATE>
+inline void llk_math_eltwise_unary_sfpu_gtz_int_init() {
+    llk_math_eltwise_unary_sfpu_init<SfpuType::gtz_int32, APPROXIMATE>();
+}
+
+template <bool APPROXIMATE>
+inline void llk_math_eltwise_unary_sfpu_gtz_int(uint dst_index, int vector_mode = (int)VectorMode::RC) {
+    llk_math_eltwise_unary_sfpu_params<APPROXIMATE>(ckernel::sfpu::calculate_gtz<APPROXIMATE>, dst_index, vector_mode);
+}
 }  // namespace ckernel

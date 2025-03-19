@@ -82,7 +82,6 @@ template struct ExecuteUnary<UnaryOpType::ERFINV>;
 template struct ExecuteUnary<UnaryOpType::EXP2>;
 template struct ExecuteUnary<UnaryOpType::EXPM1>;
 template struct ExecuteUnary<UnaryOpType::GEZ>;
-template struct ExecuteUnary<UnaryOpType::GTZ>;
 template struct ExecuteUnary<UnaryOpType::I0>;
 template struct ExecuteUnary<UnaryOpType::I1>;
 template struct ExecuteUnary<UnaryOpType::ISFINITE>;
@@ -95,7 +94,6 @@ template struct ExecuteUnary<UnaryOpType::LOG>;
 template struct ExecuteUnary<UnaryOpType::LOG10>;
 template struct ExecuteUnary<UnaryOpType::LOG2>;
 template struct ExecuteUnary<UnaryOpType::LOGICAL_NOT_UNARY>;
-template struct ExecuteUnary<UnaryOpType::LTZ>;
 template struct ExecuteUnary<UnaryOpType::NEG>;
 template struct ExecuteUnary<UnaryOpType::NEZ>;
 template struct ExecuteUnary<UnaryOpType::RECIP>;
@@ -187,6 +185,32 @@ Tensor Eqz::invoke(
     UnaryOpType op_type = UnaryOpType::EQZ;
     if (input_tensor.get_dtype() == DataType::INT32) {
         op_type = UnaryOpType::EQZ_INT32;
+    }
+
+    return detail::unary_impl(queue_id, input_tensor, {UnaryWithParam{op_type}}, memory_config, optional_output_tensor);
+}
+
+Tensor Ltz::invoke(
+    QueueId queue_id,
+    const Tensor& input_tensor,
+    const std::optional<MemoryConfig>& memory_config,
+    const std::optional<Tensor>& optional_output_tensor) {
+    UnaryOpType op_type = UnaryOpType::LTZ;
+    if (input_tensor.get_dtype() == DataType::INT32) {
+        op_type = UnaryOpType::LTZ_INT32;
+    }
+
+    return detail::unary_impl(queue_id, input_tensor, {UnaryWithParam{op_type}}, memory_config, optional_output_tensor);
+}
+
+Tensor Gtz::invoke(
+    QueueId queue_id,
+    const Tensor& input_tensor,
+    const std::optional<MemoryConfig>& memory_config,
+    const std::optional<Tensor>& optional_output_tensor) {
+    UnaryOpType op_type = UnaryOpType::GTZ;
+    if (input_tensor.get_dtype() == DataType::INT32) {
+        op_type = UnaryOpType::GTZ_INT32;
     }
 
     return detail::unary_impl(queue_id, input_tensor, {UnaryWithParam{op_type}}, memory_config, optional_output_tensor);
