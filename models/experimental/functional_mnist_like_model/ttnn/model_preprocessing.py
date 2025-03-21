@@ -3,11 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import torch
+import torch.nn as nn
 import ttnn
 from models.experimental.functional_mnist_like_model.reference.mnist_like_model import (
     Mnist_like_model,
 )
-from ttnn.model_preprocessing import infer_ttnn_module_args
+from ttnn.model_preprocessing import (
+    infer_ttnn_module_args,
+    preprocess_model_parameters,
+    preprocess_linear_weight,
+    preprocess_linear_bias,
+)
 
 
 def create_mnist_like_model_input_tensors(batch=2, input_channels=5, input_height=78, input_width=78):
@@ -23,9 +29,35 @@ def create_mnist_like_model_input_tensors(batch=2, input_channels=5, input_heigh
     return torch_input_tensor, ttnn_input_tensor
 
 
+def preprocess_conv_parameter(parameter, *, dtype):
+    parameter = ttnn.from_torch(parameter, dtype=dtype)
+    return parameter
+
+
+def custom_preprocessor(model, name):
+    parameters = {}
+    if isinstance(model, nn.Conv2d):
+        parameters["weight"] = preprocess_conv_parameter(model.weight, dtype=ttnn.float32)
+        bias = model.bias.reshape((1, 1, 1, -1))
+        parameters["bias"] = preprocess_conv_parameter(bias, dtype=ttnn.float32)
+    if isinstance(model, nn.Linear):
+        parameters["weight"] = preprocess_linear_weight(model.weight, dtype=ttnn.float32)
+        parameters["bias"] = preprocess_linear_bias(model.bias, dtype=ttnn.float32)
+
+    return parameters
+
+
 def create_mnist_like_model_model_parameters(model: Mnist_like_model, input_tensor, device):
-    parameters = infer_ttnn_module_args(model=model, run_model=lambda model: model(input_tensor), device=None)
+    parameters = preprocess_model_parameters(
+        initialize_model=lambda: model,
+        custom_preprocessor=custom_preprocessor,
+        device=device,
+    )
+
+    parameters.conv_args = {}
+    parameters.conv_args = infer_ttnn_module_args(model=model, run_model=lambda model: model(input_tensor), device=None)
     assert parameters is not None
-    for key in parameters.keys():
-        parameters[key].module = getattr(model, key)
+    for key in parameters.conv_args.keys():
+        parameters.conv_args[key].module = getattr(model, key)
+
     return parameters

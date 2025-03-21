@@ -12,7 +12,6 @@ from models.experimental.functional_mnist_like_model.ttnn.model_preprocessing im
     create_mnist_like_model_input_tensors,
     create_mnist_like_model_model_parameters,
 )
-import os
 from loguru import logger
 
 
@@ -33,9 +32,6 @@ def test_mnist_like_model(device, reset_seeds):
     ttnn_model = ttnn_mnist_like_model.Mnist_like_model(device, parameters)
     ttnn_output = ttnn_model(ttnn_input)
 
-    # N,C,H,W = torch_output.shape
-    # ttnn_output = ttnn.to_torch(ttnn_output)
-    # ttnn_output = ttnn_output.reshape(N, H, W, C )
-    # ttnn_output = ttnn_output.permute(0, 3, 1, 2)
+    ttnn_output = ttnn.to_torch(ttnn_output)
     pcc_passed, pcc_message = assert_with_pcc(ttnn_output, torch_output, 0.99)  # PCC = 0.99
     logger.info(pcc_message)
