@@ -36,7 +36,7 @@ jobs:
       ARCH_NAME: ${{ inputs.arch }}
       LOGURU_LEVEL: INFO
       LD_LIBRARY_PATH: ${{ github.workspace }}/build/lib
-    runs-on: ${{ matrix.test-group.performance == 'true' && inputs.runner-label + ', pipeline-perf, bare-metal, in-service' || inputs.runner-label + ', cloud-virtual-machine, in-service' }}
+    runs-on: ${{ matrix.test-group.performance == 'true' && format('{0}, pipeline-perf, bare-metal, in-service', inputs.runner-label) || format('{0}, cloud-virtual-machine, in-service', inputs.runner-label) }}
     steps:
       - uses: tenstorrent/tt-metal/.github/actions/checkout-with-submodule-lfs@main
       - name: Enable Performance mode
