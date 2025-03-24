@@ -13,19 +13,22 @@ jobs:
             name: "N150",
             arch: wormhole_b0,
             runs-on: ["cloud-virtual-machine", "N150", "in-service"],
-            cmd: [run_common_func_tests, run_common_perf_tests]
+            cmd: [run_common_func_tests, run_common_perf_tests],
+            performance: false
           },
           {
             name: "N300_functionality",
             arch: wormhole_b0,
             runs-on: ["cloud-virtual-machine", "N300", "in-service"],
-            cmd: [run_n300_func_tests]
+            cmd: [run_n300_func_tests],
+            performance: false
           },
           {
             name: "N300_performance",
             arch: wormhole_b0,
             runs-on: ["N300", "pipeline-perf", "bare-metal", "in-service"],
-            cmd: [run_n300_perf_tests]
+            cmd: [run_n300_perf_tests],
+            performance: true
           }
         ]
     name: ${{ matrix.test-group.name }}
@@ -33,7 +36,7 @@ jobs:
       ARCH_NAME: ${{ matrix.test-group.arch }}
       LOGURU_LEVEL: INFO
       LD_LIBRARY_PATH: ${{ github.workspace }}/build/lib
-    runs-on: ${{ matrix.test-group.runs-on }}
+    runs-on: ${{ matrix.test-group.performance ? ["N300", "pipeline-perf", "bare-metal", "in-service"] : ["cloud-virtual-machine", ${{ matrix.test-group.arch }}, "in-service"]}}
     steps:
       - uses: tenstorrent/tt-metal/.github/actions/checkout-with-submodule-lfs@main
       - name: Enable Performance mode
