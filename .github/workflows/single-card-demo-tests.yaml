@@ -14,4 +14,14 @@ jobs:
   single-card-demo-tests:
     needs: build-artifact
     secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group: [
+          { arch: wormhole_b0, runner-label: N150 },
+          { arch: wormhole_b0, runner-label: N300 },
+        ]
     uses: ./.github/workflows/single-card-demo-tests-impl.yaml
+    with:
+      arch: ${{ matrix.test-group.arch}}
+      runner-label: ${{ matrix.test-group.runner-label}}
