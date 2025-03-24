@@ -29,7 +29,7 @@ jobs:
       ARCH_NAME: ${{ matrix.test-group.arch }}
       LOGURU_LEVEL: INFO
       LD_LIBRARY_PATH: ${{ github.workspace }}/build/lib
-    runs-on: ${{ matrix.test-group.performance ? ["N300", "pipeline-perf", "bare-metal", "in-service"] : ["cloud-virtual-machine", "N300", "in-service"] }}
+    runs-on: ${{ matrix.test-group.performance == 'true' && 'N300, pipeline-perf, bare-metal, in-service' || 'cloud-virtual-machine, N300, in-service' }}
     steps:
       - uses: tenstorrent/tt-metal/.github/actions/checkout-with-submodule-lfs@main
       - name: Enable Performance mode
