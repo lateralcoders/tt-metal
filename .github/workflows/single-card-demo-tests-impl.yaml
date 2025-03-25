@@ -42,7 +42,7 @@ jobs:
             cmd: [run_n300_perf_tests]
           }
         ]
-    name: ${{ inputs.runner-label }}-${{ inputs.test-category }}-${{ inputs.test-category == 'performance' && matrix.test-group-performance.name || matrix.test-group-functionality.name }}
+    name: ${{inputs.runner-label}}-${{ inputs.test-category == 'performance' && matrix.test-group-performance.name || matrix.test-group-functionality.name }}
     env:
       ARCH_NAME: ${{ inputs.arch }}
       LOGURU_LEVEL: INFO
