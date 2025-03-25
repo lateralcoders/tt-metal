@@ -24,7 +24,7 @@ jobs:
             name: "func_test2",
             cmd: run_n300_func_tests,
             test-category: "functionality",
-            runner-label: "N150"
+            runner-label: "N300"
           },
           {
             name: "perf_test1",
