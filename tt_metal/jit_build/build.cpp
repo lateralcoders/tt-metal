@@ -81,7 +81,7 @@ std::string get_default_root_path() {
 JitBuildEnv::JitBuildEnv() {}
 
 void JitBuildEnv::init(
-    uint32_t build_key, tt::ARCH arch, const std::map<std::string, std::string>& device_kernel_defines) {
+    uint64_t build_key, tt::ARCH arch, const std::map<std::string, std::string>& device_kernel_defines) {
     // Paths
     this->root_ = llrt::RunTimeOptions::get_instance().get_root_dir();
     this->out_root_ = llrt::RunTimeOptions::get_instance().is_cache_dir_specified()
@@ -183,12 +183,6 @@ void JitBuildEnv::init(
     }
     for (auto& feature : tt::llrt::RunTimeOptions::get_instance().get_watcher_disabled_features()) {
         this->defines_ += "-DWATCHER_DISABLE_" + feature + " ";
-    }
-
-    if (tt::llrt::RunTimeOptions::get_instance().get_feature_enabled(tt::llrt::RunTimeDebugFeatureDprint)) {
-        this->defines_ +=
-            "-DDEBUG_PRINT_ENABLED -DL1_UNRESERVED_BASE=" +
-            to_string(hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED)) + " ";
     }
 
     if (tt::llrt::RunTimeOptions::get_instance().get_record_noc_transfers()) {

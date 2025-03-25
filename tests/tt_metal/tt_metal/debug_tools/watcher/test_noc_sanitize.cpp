@@ -29,6 +29,8 @@ typedef enum sanitization_features {
     SanitizeMailboxWrite
 } watcher_features_t;
 
+static uint32_t get_unreserved_base(IDevice* device) { return device->allocator()->get_config().l1_unreserved_base; }
+
 void RunTestOnCore(WatcherFixture* fixture, IDevice* device, CoreCoord &core, bool is_eth_core, watcher_features_t feature, bool use_ncrisc = false) {
     // It's not simple to check the watcher server status from the finish loop for slow dispatch, so just run these
     // tests in FD.
@@ -49,7 +51,7 @@ void RunTestOnCore(WatcherFixture* fixture, IDevice* device, CoreCoord &core, bo
     uint32_t single_tile_size = 2 * 1024;
     uint32_t num_tiles = 50;
     uint32_t l1_buffer_size = single_tile_size * num_tiles;
-    uint32_t l1_buffer_addr = hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED);
+    uint32_t l1_buffer_addr = get_unreserved_base(device);
 
     // For ethernet core, need to have smaller buffer at a different address
     if (is_eth_core) {

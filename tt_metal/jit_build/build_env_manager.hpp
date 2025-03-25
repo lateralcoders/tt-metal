@@ -14,9 +14,13 @@ using ProcClassMapping = std::vector<BuildIndexAndTypeCount>;  // Processor clas
 using ProgCoreMapping =
     std::vector<ProcClassMapping>;  // Programmable core and processor class to BuildIndexAndTypeCount
 
+struct BuildKey {
+    uint64_t key = 0;
+};
+
 // A struct to hold device-specific build environment
 struct DeviceBuildEnv {
-    uint32_t build_key = 0;
+    BuildKey build_key;
     JitBuildEnv build_env;
     JitBuildStateSet firmware_build_states;
     JitBuildStateSet kernel_build_states;
@@ -31,7 +35,7 @@ public:
 
     // Add a new build environment for the corresponding device id and num_hw_cqs. Also generates the build key and
     // build states.
-    void add_build_env(chip_id_t device_id, uint8_t num_hw_cqs);
+    void add_build_env(chip_id_t device_id, uint8_t num_hw_cqs, uint32_t worker_l1_unreserved_start);
 
     // Getter functions for build envs/keys/states
     const DeviceBuildEnv& get_device_build_env(chip_id_t device_id);

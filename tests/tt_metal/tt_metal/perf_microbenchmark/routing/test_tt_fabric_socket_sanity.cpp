@@ -6,6 +6,7 @@
 #include <tt-metalium/tt_metal.hpp>
 #include <tt-metalium/device_impl.hpp>
 #include "rtoptions.hpp"
+#include <tt-metalium/allocator.hpp>
 #include <tt-metalium/control_plane.hpp>
 // #include "tt_metal/impl/dispatch/kernels/packet_queue_ctrl.hpp"
 #include "tt_metal/fabric/hw/inc/tt_fabric_status.h"
@@ -296,8 +297,7 @@ int main(int argc, char** argv) {
         CoreCoord router_phys_core;
         routing_plane_id_t routing_plane;
         CoreCoord gk_phys_core;
-        uint32_t routing_table_addr =
-            hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED);
+        uint32_t routing_table_addr = device_map[test_device_id_l]->allocator()->get_config().l1_unreserved_base;
         uint32_t gk_interface_addr = routing_table_addr + sizeof(fabric_router_l1_config_t) * 4;
         uint32_t client_interface_addr = routing_table_addr + sizeof(fabric_router_l1_config_t) * 4;
         uint32_t client_pull_req_buf_addr = client_interface_addr + sizeof(fabric_pull_client_interface_t);

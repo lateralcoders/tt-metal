@@ -7,6 +7,7 @@
 #include <tt-metalium/device_pool.hpp>
 #include <tt-metalium/device_impl.hpp>
 #include "rtoptions.hpp"
+#include <tt-metalium/allocator.hpp>
 #include <tt-metalium/mesh_graph.hpp>
 #include <tt-metalium/control_plane.hpp>
 //#include "tt_metal/impl/dispatch/kernels/packet_queue_ctrl.hpp"
@@ -1607,7 +1608,7 @@ int main(int argc, char **argv) {
         } */
 
         uint32_t worker_unreserved_base_addr =
-            hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED);
+            test_devices.begin()->second->device_handle->allocator()->get_config().l1_unreserved_base;
 
         if (metal_fabric_init_level == 0) {
             // manual init fabric

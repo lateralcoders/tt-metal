@@ -30,7 +30,8 @@ BuildEnvManager::BuildEnvManager() {
     }
 }
 
-std::map<std::string, std::string> initialize_device_kernel_defines(chip_id_t device_id, uint8_t num_hw_cqs) {
+std::map<std::string, std::string> initialize_device_kernel_defines(
+    chip_id_t device_id, uint8_t num_hw_cqs, uint32_t worker_l1_unreserved_start) {
     std::map<std::string, std::string> device_kernel_defines;
 
     const metal_SocDescriptor& soc_d = tt::Cluster::instance().get_soc_desc(device_id);
@@ -76,21 +77,28 @@ std::map<std::string, std::string> initialize_device_kernel_defines(chip_id_t de
 
     device_kernel_defines.emplace("PCIE_NOC_X", std::to_string(pcie_core.x));
     device_kernel_defines.emplace("PCIE_NOC_Y", std::to_string(pcie_core.y));
+    if (tt::llrt::RunTimeOptions::get_instance().get_feature_enabled(tt::llrt::RunTimeDebugFeatureDprint)) {
+        device_kernel_defines.emplace("DEBUG_PRINT_ENABLED", "1");
+        device_kernel_defines.emplace("L1_UNRESERVED_BASE", std::to_string(worker_l1_unreserved_start));
+    }
 
     return device_kernel_defines;
 }
 
-uint32_t compute_build_key(chip_id_t device_id, uint8_t num_hw_cqs) {
-    uint32_t build_key = 0;
+uint64_t compute_build_key(chip_id_t device_id, uint8_t num_hw_cqs, uint32_t worker_l1_unreserved_start) {
+    uint64_t build_key = 0;
     constexpr uint32_t harvesting_map_bits = 12;
     constexpr uint32_t num_hw_cq_bits = 8;
     constexpr uint32_t dispatch_core_axis_bits = 1;
     constexpr uint32_t dispatch_core_type_bits = 1;
+    constexpr uint32_t worker_l1_unreserved_start_bits = 32;
+
     static_assert(dispatch_core_manager::MAX_NUM_HW_CQS <= (1 << num_hw_cq_bits));
     static_assert(static_cast<uint32_t>(DispatchCoreAxis::COUNT) <= (1 << dispatch_core_axis_bits));
     static_assert(static_cast<uint32_t>(DispatchCoreType::COUNT) <= (1 << dispatch_core_type_bits));
     static_assert(
-        harvesting_map_bits + num_hw_cq_bits + dispatch_core_axis_bits + dispatch_core_type_bits <=
+        harvesting_map_bits + num_hw_cq_bits + dispatch_core_axis_bits + dispatch_core_type_bits +
+            worker_l1_unreserved_start_bits <=
         sizeof(build_key) * CHAR_BIT);
 
     // num_hw_cqs, dispatch_core_axis, dispatch_core_type all change the number of banks, so need to be part of the
@@ -109,6 +117,11 @@ uint32_t compute_build_key(chip_id_t device_id, uint8_t num_hw_cqs) {
         // Coordinate Virtualization is enabled. Track only the number of harvested cores, instead of the exact
         // harvesting configuration (this is not needed).
         build_key |= (std::bitset<harvesting_map_bits>(tt::Cluster::instance().get_harvesting_mask(device_id)).count());
+    }
+    if (tt::llrt::RunTimeOptions::get_instance().get_feature_enabled(tt::llrt::RunTimeDebugFeatureDprint)) {
+        // worker_l1_unreserved_start is used to set L1_UNRESERVED_BASE, which is used in debug prints
+        build_key |= worker_l1_unreserved_start
+                     << (harvesting_map_bits + num_hw_cq_bits + dispatch_core_axis_bits + dispatch_core_type_bits);
     }
     return build_key;
 }
@@ -197,12 +210,12 @@ JitBuildStateSet create_build_state(JitBuildEnv& build_env, chip_id_t device_id,
     return build_states;
 }
 
-void BuildEnvManager::add_build_env(chip_id_t device_id, uint8_t num_hw_cqs) {
+void BuildEnvManager::add_build_env(chip_id_t device_id, uint8_t num_hw_cqs, uint32_t worker_l1_unreserved_start) {
     const std::lock_guard<std::mutex> lock(this->lock);
-    uint32_t build_key = compute_build_key(device_id, num_hw_cqs);
-    auto device_kernel_defines = initialize_device_kernel_defines(device_id, num_hw_cqs);
+    uint64_t build_key = compute_build_key(device_id, num_hw_cqs, worker_l1_unreserved_start);
+    auto device_kernel_defines = initialize_device_kernel_defines(device_id, num_hw_cqs, worker_l1_unreserved_start);
 
-    device_id_to_build_env_[device_id].build_key = build_key;
+    device_id_to_build_env_[device_id].build_key.key = build_key;
     device_id_to_build_env_[device_id].build_env.init(build_key, tt::Cluster::instance().arch(), device_kernel_defines);
     device_id_to_build_env_[device_id].firmware_build_states =
         create_build_state(device_id_to_build_env_[device_id].build_env, device_id, num_hw_cqs, true);

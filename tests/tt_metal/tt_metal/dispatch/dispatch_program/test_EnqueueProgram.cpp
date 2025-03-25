@@ -925,7 +925,7 @@ void test_my_coordinates(IDevice* device, tt::RISCV processor_class, size_t cq_i
     }
 
     uint32_t cb_addr = processor_class == tt::RISCV::ERISC ? hal::get_erisc_l1_unreserved_base()
-                                                           : hal::get_tensix_l1_unreserved_base();
+                                                           : device->allocator()->get_config().l1_unreserved_base;
     std::vector<uint32_t> compile_args{
         cb_addr,
     };

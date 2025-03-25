@@ -8,6 +8,14 @@ set(HAL_INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/tt_metal
 )
 
+add_library(rtoptions OBJECT rtoptions.cpp)
+
+target_link_libraries(
+    rtoptions
+    PUBLIC
+        TT::Metalium::Common
+)
+
 add_library(wh_hal OBJECT)
 add_library(HAL::wormhole ALIAS wh_hal)
 target_sources(
@@ -33,6 +41,7 @@ target_link_libraries(
         hw
         fmt::fmt-header-only
         umd::device
+        rtoptions
 )
 
 add_library(bh_hal OBJECT ${BH_HAL_SRC})
@@ -59,12 +68,12 @@ target_link_libraries(
         hw
         fmt::fmt-header-only
         umd::device
+        rtoptions
 )
 
 set(LLRT_SRC
     llrt.cpp
     core_descriptor.cpp
-    rtoptions.cpp
     tlb_config.cpp
     tt_cluster.cpp
     tt_elffile.cpp
@@ -81,6 +90,7 @@ target_link_libraries(
     PUBLIC
         umd::device
         Metalium::Metal::Hardware
+        "$<TARGET_OBJECTS:rtoptions>"
     PRIVATE
         HAL::wormhole
         HAL::blackhole

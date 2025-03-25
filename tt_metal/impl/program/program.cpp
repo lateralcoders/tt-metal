@@ -54,7 +54,7 @@ void GenerateBinaries(IDevice* device, JitBuildOptions &build_options, const std
 #include <fstream>
 #endif
 
-size_t KernelCompileHash(const std::shared_ptr<Kernel>& kernel, JitBuildOptions& build_options, uint32_t build_key) {
+size_t KernelCompileHash(const std::shared_ptr<Kernel>& kernel, JitBuildOptions& build_options, uint64_t build_key) {
     // Store the build key into the KernelCompile hash. This will be unique per command queue
     // configuration (necessary for dispatch kernels).
     // Also account for watcher/dprint enabled in hash because they enable additional code to
@@ -222,7 +222,7 @@ class Program_ {
 
     std::vector<Semaphore> semaphores_;
 
-    std::unordered_set<uint32_t> compiled_;
+    std::unordered_set<uint64_t> compiled_;
     bool local_circular_buffer_allocation_needed_;
 
     static constexpr uint8_t core_to_kernel_group_invalid_index = 0xff;
@@ -1120,8 +1120,8 @@ void detail::Program_::populate_dispatch_data(IDevice* device) {
             } else {
                 sub_kernels = {kernel->processor()};
             }
-            const auto& binaries =
-                kernel->binaries(BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key);
+            const auto& binaries = kernel->binaries(
+                BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key.key);
             const auto core_type = kernel->get_kernel_programmable_core_type();
             std::vector<uint32_t> dst_base_addrs;
             std::vector<uint32_t> page_offsets;
@@ -1315,7 +1315,7 @@ void Program::set_launch_msg_sem_offsets() { pimpl_->set_launch_msg_sem_offsets(
 void Program::populate_dispatch_data(IDevice* device) { pimpl_->populate_dispatch_data(device); }
 
 void Program::generate_dispatch_commands(IDevice* device) {
-    uint64_t command_hash = BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key;
+    uint64_t command_hash = BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key.key;
     if (not hal_ref.is_coordinate_virtualization_enabled()) {
         // When coordinate virtualization is not enabled, explicitly encode the device
         // id into the command hash, to always assert on programs being reused across devices.
@@ -1340,7 +1340,7 @@ void Program::allocate_kernel_bin_buf_on_device(IDevice* device) { pimpl_->alloc
 
 void detail::Program_::compile(IDevice* device, bool fd_bootloader_mode) {
     //ZoneScoped;
-    if (compiled_.contains(BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key)) {
+    if (compiled_.contains(BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key.key)) {
         return;
     }
     // Clear the determined sub_device_ids when we compile the program for the first time
@@ -1418,7 +1418,7 @@ void detail::Program_::compile(IDevice* device, bool fd_bootloader_mode) {
                     auto kernel_hash = KernelCompileHash(
                         kernel,
                         build_options,
-                        BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key);
+                        BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key.key);
 
                     const std::string kernel_path_suffix = kernel->name() + "/" + std::to_string(kernel_hash) + "/";
                     kernel->set_full_name(kernel_path_suffix);
@@ -1451,7 +1451,7 @@ void detail::Program_::compile(IDevice* device, bool fd_bootloader_mode) {
         detail::MemoryReporter::inst().flush_program_memory_usage(get_id(), device);
     }
 
-    compiled_.insert(BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key);
+    compiled_.insert(BuildEnvManager::get_instance().get_device_build_env(device->build_id()).build_key.key);
 }
 
 void Program::compile(IDevice* device, bool fd_bootloader_mode) { pimpl_->compile(device, fd_bootloader_mode); }

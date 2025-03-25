@@ -73,7 +73,7 @@ class Kernel : public JitBuildSettings {
 
     bool is_on_logical_core(const CoreCoord &logical_core) const;
 
-    std::vector<ll_api::memory const*> const& binaries(uint32_t build_key) const;
+    const std::vector<const ll_api::memory*>& binaries(uint64_t build_key) const;
 
     std::vector<uint32_t> compile_time_args() const { return compile_time_args_; }
 
@@ -103,7 +103,7 @@ class Kernel : public JitBuildSettings {
     virtual void generate_binaries(IDevice* device, JitBuildOptions &build_options) const = 0;
     uint32_t get_binary_packed_size(IDevice* device, int index) const;
     uint32_t get_binary_text_size(IDevice* device, int index) const;
-    void set_binaries(uint32_t build_key, std::vector<ll_api::memory const*>&& binaries);
+    void set_binaries(uint64_t build_key, std::vector<const ll_api::memory*>&& binaries);
     virtual bool binaries_exist_on_disk(const IDevice* device) const = 0;
     virtual void read_binaries(IDevice* device) = 0;
 
@@ -131,7 +131,7 @@ class Kernel : public JitBuildSettings {
     // DataMovement kernels have one binary each and Compute kernels have three binaries
     // Different set of binaries per device because kernel compilation is device dependent
     // TODO: break this dependency by https://github.com/tenstorrent/tt-metal/issues/3381
-    std::unordered_map<chip_id_t, std::vector<ll_api::memory const*>> binaries_;
+    std::unordered_map<uint64_t, std::vector<const ll_api::memory*>> binaries_;
     uint8_t dispatch_class_;
     std::vector<uint32_t> compile_time_args_;
     std::vector< std::vector< std::vector<uint32_t>> > core_to_runtime_args_;

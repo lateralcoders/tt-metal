@@ -20,6 +20,7 @@
 #include <tt-metalium/tt_metal.hpp>
 #include "test_common.hpp"
 #include "rtoptions.hpp"
+#include <tt-metalium/allocator.hpp>
 #include <tt-metalium/metal_soc_descriptor.h>
 #include <tt-metalium/event.hpp>
 #include <tt-metalium/command_queue.hpp>
@@ -106,6 +107,8 @@ void init(int argc, char** argv) {
     }
 }
 
+static uint32_t get_unreserved_base(IDevice* device) { return device->allocator()->get_config().l1_unreserved_base; }
+
 int main(int argc, char** argv) {
     init(argc, argv);
 
@@ -156,10 +159,10 @@ int main(int argc, char** argv) {
         virtual_offset.y,
         N_RANDS,
         rnd_delay_g,
-        tt::tt_metal::hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED),
-        tt::tt_metal::hal_ref.get_dev_addr(
-            mcast_from_eth_g ? HalProgrammableCoreType::IDLE_ETH : HalProgrammableCoreType::TENSIX,
-            HalL1MemAddrType::UNRESERVED),
+        get_unreserved_base(device),
+        mcast_from_eth_g
+            ? tt::tt_metal::hal_ref.get_dev_addr(HalProgrammableCoreType::IDLE_ETH, HalL1MemAddrType::UNRESERVED)
+            : get_unreserved_base(device),
     };
 
     KernelHandle ucast_kernel = tt_metal::CreateKernel(

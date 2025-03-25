@@ -174,6 +174,11 @@ TEST(NOC, TensixVerifyNocIdentityTranslationTable) {
 }
 
 namespace tt::tt_metal {
+namespace {
+
+uint32_t get_unreserved_base(IDevice* device) { return device->allocator()->get_config().l1_unreserved_base; }
+
+}  // namespace
 
 // Tests that kernel can write to and read from a stream register address
 // This is meant to exercise noc_inline_dw_write API
@@ -288,11 +293,11 @@ TEST_F(DeviceFixture, TensixIncrementStreamRegWrite) {
 TEST_F(DeviceFixture, TensixInlineWrite4BAlignment) {
     CoreCoord writer_core{0, 0};
     CoreCoord receiver_core(0, 1);
-    uint32_t receiver_addr = hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED) + 4;
-    EXPECT_EQ(receiver_addr % 4, 0)
-        << "Expected dest address to be 4B aligned to test noc_inline_dw_write alignment rule";
     uint32_t value_to_write = 39;
     for (tt_metal::IDevice* device : this->devices_) {
+        uint32_t receiver_addr = get_unreserved_base(device) + 4;
+        EXPECT_EQ(receiver_addr % 4, 0)
+            << "Expected dest address to be 4B aligned to test noc_inline_dw_write alignment rule";
         std::vector<uint32_t> readback(sizeof(uint32_t), 0);
         tt_metal::detail::WriteToDeviceL1(device, receiver_core, receiver_addr, readback);
 
@@ -323,11 +328,11 @@ TEST_F(DeviceFixture, TensixInlineWrite4BAlignment) {
 TEST_F(DeviceFixture, TensixInlineWriteDedicatedNoc) {
     CoreCoord writer_core{0, 0};
     CoreCoord receiver_core(0, 1);
-    uint32_t first_receiver_addr = hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED);
-    uint32_t second_receiver_addr = first_receiver_addr + hal_ref.get_alignment(HalMemType::L1);
     uint32_t value_to_write = 39;
 
     for (tt_metal::IDevice* device : this->devices_) {
+        uint32_t first_receiver_addr = get_unreserved_base(device);
+        uint32_t second_receiver_addr = first_receiver_addr + hal_ref.get_alignment(HalMemType::L1);
         std::vector<uint32_t> readback(32 / sizeof(uint32_t), 0);
         tt_metal::detail::WriteToDeviceL1(device, receiver_core, first_receiver_addr, readback);
 
@@ -371,12 +376,11 @@ TEST_F(DeviceFixture, TensixInlineWriteDedicatedNoc) {
 TEST_F(DeviceFixture, TensixInlineWriteDedicatedNocMisaligned) {
     CoreCoord writer_core{0, 0};
     CoreCoord receiver_core(0, 1);
-    uint32_t base_receiver_addr =
-        hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED) + 4;
     uint32_t value_to_write = 39;
     uint32_t num_writes = 8;
 
     for (tt_metal::IDevice* device : this->devices_) {
+        uint32_t base_receiver_addr = get_unreserved_base(device) + 4;
         std::vector<uint32_t> readback(num_writes * sizeof(uint32_t), 0);
         tt_metal::detail::WriteToDeviceL1(device, receiver_core, base_receiver_addr, readback);
 
@@ -417,11 +421,11 @@ TEST_F(DeviceFixture, TensixInlineWriteDedicatedNocMisaligned) {
 TEST_F(DeviceFixture, TensixInlineWriteDynamicNoc) {
     CoreCoord writer_core{0, 0};
     CoreCoord receiver_core(0, 1);
-    uint32_t receiver_addr0 = hal_ref.get_dev_addr(HalProgrammableCoreType::TENSIX, HalL1MemAddrType::UNRESERVED);
-    uint32_t receiver_addr2 = receiver_addr0 + (2 * hal_ref.get_alignment(HalMemType::L1));
     uint32_t value_to_write = 39;
 
     for (tt_metal::IDevice* device : this->devices_) {
+        uint32_t receiver_addr0 = get_unreserved_base(device);
+        uint32_t receiver_addr2 = receiver_addr0 + (2 * hal_ref.get_alignment(HalMemType::L1));
         std::vector<uint32_t> readback(80 / sizeof(uint32_t), 0);
         tt_metal::detail::WriteToDeviceL1(device, receiver_core, receiver_addr0, readback);
 

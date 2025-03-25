@@ -46,7 +46,8 @@ public:
         size_t l1_small_size,
         size_t trace_region_size,
         const tt_metal::DispatchCoreConfig& dispatch_core_config,
-        tt::stl::Span<const std::uint32_t> l1_bank_remap = {}) noexcept;
+        tt::stl::Span<const std::uint32_t> l1_bank_remap = {},
+        size_t worker_l1_size = DEFAULT_WORKER_L1_SIZE) noexcept;
 
     tt_metal::IDevice* get_active_device(chip_id_t device_id) const;
     std::vector<tt_metal::IDevice*> get_all_active_devices() const;
@@ -63,6 +64,7 @@ private:
     uint8_t num_hw_cqs;
     size_t l1_small_size;
     size_t trace_region_size;
+    size_t worker_l1_size;
     std::vector<uint32_t> l1_bank_remap;
     bool using_fast_dispatch;
     std::mutex lock;
@@ -75,7 +77,7 @@ private:
     std::unordered_set<std::thread::id> worker_thread_ids;
     std::thread::id device_pool_creation_thread_id;
     bool skip_remote_devices;
-    std::unordered_set<uint32_t> firmware_built_keys;
+    std::unordered_set<uint64_t> firmware_built_keys;
 
     // Determine which CPU cores the worker threads need to be placed on for each device
     std::unordered_map<uint32_t, uint32_t> worker_thread_to_cpu_core_map;
