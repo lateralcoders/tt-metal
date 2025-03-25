@@ -18,31 +18,34 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-group-functionality: [
+        test-group: [
           {
             name: "func_test1",
-            cmd: [run_n300_func_tests]
+            cmd: [run_n300_func_tests],
+            test-category: "functionality"
           },
           {
             name: "func_test2",
-            cmd: [run_n300_func_tests]
-          }
-        ]
-        test-group-performance: [
+            cmd: [run_n300_func_tests],
+            test-category: "functionality"
+          },
           {
             name: "perf_test1",
-            cmd: [run_n300_perf_tests]
+            cmd: [run_n300_perf_tests],
+            test-category: "performance"
           },
           {
             name: "perf_test2",
-            cmd: [run_n300_perf_tests]
+            cmd: [run_n300_perf_tests],
+            test-category: "performance"
           },
           {
             name: "perf_test3",
-            cmd: [run_n300_perf_tests]
+            cmd: [run_n300_perf_tests],
+            test-category: "performance"
           }
         ]
-    name: ${{ inputs.test-category == 'performance' && matrix.test-group-performance.name || matrix.test-group-functionality.name }}
+    name: ${{ matrix.test-group.name }}
     env:
       ARCH_NAME: ${{ inputs.arch }}
       LOGURU_LEVEL: INFO
@@ -67,8 +70,8 @@ jobs:
           cd $TT_METAL_HOME
           export PYTHONPATH=$TT_METAL_HOME
           source ${{ github.workspace }}/tests/scripts/single_card/run_single_card_demo_tests.sh
-          ${{ inputs.test-category == 'functionality' && matrix.test-group-functionality.cmd }}
-          ${{ inputs.test-category == 'performance' && matrix.test-group-performance.cmd }}
+          ${{ inputs.test-category == matrix.test-group.test-category && matrix.test-group.cmd }}
+#          ${{ inputs.test-category == 'performance' && matrix.test-group.cmd }}
       - name: Save environment data
         if: ${{ inputs.test-category == 'performance' && inputs.runner-label == 'N300' && !cancelled() }}
         env:
