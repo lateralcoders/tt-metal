@@ -22,30 +22,35 @@ jobs:
           {
             name: "func_test1",
             cmd: [run_n300_func_tests],
-            test-category: "functionality"
+            test-category: "functionality",
+            machine-tag: "N150, N300"
           },
           {
             name: "func_test2",
             cmd: [run_n300_func_tests],
-            test-category: "functionality"
+            test-category: "functionality",
+            machine-tag: "N150"
           },
           {
             name: "perf_test1",
             cmd: [run_n300_perf_tests],
-            test-category: "performance"
+            test-category: "performance",
+            machine-tag: "N150, N300"
           },
           {
             name: "perf_test2",
             cmd: [run_n300_perf_tests],
-            test-category: "performance"
+            test-category: "performance",
+            machine-tag: "N150"
           },
           {
             name: "perf_test3",
             cmd: [run_n300_perf_tests],
-            test-category: "performance"
+            test-category: "performance",
+            machine-tag: "N300"
           }
         ]
-    name: ${{ matrix.test-group.name }}
+    name: ${{ contains(matrix.test-group.machine-tag, inputs.runner-label) && inputs.test-category == matrix.test-group.test-category && matrix.test-group.name }}
     env:
       ARCH_NAME: ${{ inputs.arch }}
       LOGURU_LEVEL: INFO
