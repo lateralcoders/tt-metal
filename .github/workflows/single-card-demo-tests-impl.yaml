@@ -9,20 +9,25 @@ on:
       runner-label:
         required: true
         type: string
+      test-category:
+        required: true
+        type: string
 
 jobs:
   single-card-demo-tests:
     strategy:
       fail-fast: false
       matrix:
-        test-group: [
+        test-group-functionality: [
           {
             name: "N300_functionality",
             arch: wormhole_b0,
             runs-on: ["cloud-virtual-machine", "N300", "in-service"],
             cmd: [run_n300_func_tests],
             performance: false
-          },
+          }  
+        ]
+        test-group-performance: [
           {
             name: "N300_performance",
             arch: wormhole_b0,
@@ -31,16 +36,16 @@ jobs:
             performance: true
           }
         ]
-    name: ${{ matrix.test-group.name }}
+    name: ${{ inputs.runner-label }}-${{ inputs.test-category }}
     env:
       ARCH_NAME: ${{ inputs.arch }}
       LOGURU_LEVEL: INFO
       LD_LIBRARY_PATH: ${{ github.workspace }}/build/lib
-    runs-on: ${{ matrix.test-group.performance == 'true' && format('{0}, pipeline-perf, bare-metal, in-service', inputs.runner-label) || format('{0}, cloud-virtual-machine, in-service', inputs.runner-label) }}
+    runs-on: ${{ inputs.test-category == 'performance' && inputs.runner-label == 'N300' && format('{0}, pipeline-perf, bare-metal, in-service', inputs.runner-label) || format('{0}, cloud-virtual-machine, in-service', inputs.runner-label) }}
     steps:
       - uses: tenstorrent/tt-metal/.github/actions/checkout-with-submodule-lfs@main
       - name: Enable Performance mode
-        if: ${{ matrix.test-group.name == 'N300_performance' }}
+        if: ${{ inputs.test-category == 'performance' && inputs.runner-label == 'N300' }}
         run: |
           sudo cpupower frequency-set -g performance
       - uses: ./.github/actions/ensure-active-weka-mount
@@ -56,16 +61,17 @@ jobs:
           cd $TT_METAL_HOME
           export PYTHONPATH=$TT_METAL_HOME
           source ${{ github.workspace }}/tests/scripts/single_card/run_single_card_demo_tests.sh
-          ${{ matrix.test-group.cmd }}
+          ${{ inputs.test-category == 'functionality' && matrix.test-group-functionality.cmd }}
+          ${{ inputs.test-category == 'performance' && matrix.test-group-performance.cmd }}
       - name: Save environment data
-        if: ${{ matrix.test-group.name == 'N300_performance' && !cancelled() }}
+        if: ${{ inputs.test-category == 'performance' && inputs.runner-label == 'N300' && !cancelled() }}
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/python_env/bin/activate
           python3 .github/scripts/data_analysis/create_benchmark_with_environment_json.py
       - name: Upload benchmark data
-        if: ${{ matrix.test-group.name == 'N300_performance' && !cancelled() }}
+        if: ${{ inputs.test-category == 'performance' && inputs.runner-label == 'N300' && !cancelled() }}
         uses: ./.github/actions/upload-data-via-sftp
         with:
           ssh-private-key: ${{ secrets.SFTP_BENCHMARK_WRITER_KEY }}
@@ -80,7 +86,7 @@ jobs:
             generated/test_reports/
           prefix: "test_reports_"
       - name: Disable Performance mode
-        if: ${{ matrix.test-group.name == 'N300_performance' }}
+        if: ${{ inputs.test-category == 'performance' && inputs.runner-label == 'N300' }}
         run: |
           sudo cpupower frequency-set -g ondemand
 
