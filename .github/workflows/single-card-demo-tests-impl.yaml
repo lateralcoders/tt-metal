@@ -50,7 +50,8 @@ jobs:
             machine-tag: "N300"
           }
         ]
-    name: ${{ contains(matrix.test-group.machine-tag, inputs.runner-label) && inputs.test-category == matrix.test-group.test-category && matrix.test-group.name }}
+    if: ${{ contains(matrix.test-group.machine-tag, inputs.runner-label) && inputs.test-category == matrix.test-group.test-category }}
+    name: ${{ matrix.test-group.name }}
     env:
       ARCH_NAME: ${{ inputs.arch }}
       LOGURU_LEVEL: INFO
