@@ -38,7 +38,7 @@ on:
 
 jobs:
   umd-unit-tests:
-    name: UMD tests ${{ inputs.arch }} ${{ inputs.runner-label }}
+    name: UMD tests ${{ inputs.arch }} ${{ matrix.runner-label }}
     strategy:
       fail-fast: false
       max-parallel: 1
