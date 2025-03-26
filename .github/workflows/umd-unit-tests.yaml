@@ -39,10 +39,15 @@ on:
 jobs:
   umd-unit-tests:
     name: UMD tests ${{ inputs.arch }} ${{ inputs.runner-label }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        runner-label: ["P150-173", "P150-174", "P150-175", "P150-194", "P150-178", "P150-199", "P150-206", "P150-201", "P150-209", "P150-195", "P150-196", "P150-197", "P150-198", "P150-200", "P150-207", "P150-208", "P150-210", "P150-211", "P150-212", "P150-213", "P150-214"]
     runs-on:
-      - ${{ inputs.runner-label }}
+      - ${{ matrix.runner-label }}
       - cloud-virtual-machine
-      - in-service
+      # - in-service
     container:
       image: ${{ inputs.docker-image }}
       env:
