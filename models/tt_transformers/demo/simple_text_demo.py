@@ -487,8 +487,8 @@ def test_demo_text(
         pytest.skip(f"Invalid number of DP groups: {data_parallel}, for {num_devices} devices")
 
     llama_dir = os.getenv("LLAMA_DIR")
-    if is_ci_env and num_devices == 32 and (data_parallel > 4 or (data_parallel == 4 and "3.1-70B" not in llama_dir)):
-        pytest.skip("CI runs only Llama3 70b DP = 4, TP = 8 on TG")
+    if is_ci_env and num_devices == 32 and not (data_parallel == 4 and ("3.1-70B" in llama_dir)):
+        pytest.skip(f"CI runs only Llama3 70b DP = 4, TP = 8 on TG; Test input: DP={data_parallel}, Llama:{llama_dir}")
     if is_ci_env and num_devices == 8 and data_parallel > 1 and not ("3.2-1B" in llama_dir or "3.1-8B" in llama_dir):
         pytest.skip("CI runs only hybrid Llama3 1b and 8b on T3K")
     if is_ci_env and data_parallel > 1 and batch_size > 1:
