@@ -36,7 +36,10 @@ jobs:
           { name: "squeezebert", runner-label: "N300", performance: false, cmd: run_squeezebert_func},
           { name: "roberta", runner-label: "N300", performance: false, cmd: run_roberta_func},
         ]
-    runs-on: 'N300, cloud-virtual-machine, in-service'
+    runs-on:
+      - N300
+      - cloud-virtual-machine
+      - in-service
     name: ${{ matrix.test-group.name }}
     env:
       ARCH_NAME: ${{ inputs.arch }}
