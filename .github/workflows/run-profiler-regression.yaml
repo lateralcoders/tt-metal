@@ -85,8 +85,6 @@ jobs:
         PROFILER_OUTPUT_DIR: /work/generated/profiler/reports
         DONT_USE_VIRTUAL_ENVIRONMENT: 1
         GITHUB_ACTIONS: true
-        TT_METAL_WATCHER: ${{ inputs.enable-watcher == true && '1' || '0' }}
-        TT_METAL_WATCHER_APPEND: ${{ inputs.enable-watcher == true && '1' || '0' }}
       volumes:
         - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
         - /dev/hugepages-1G:/dev/hugepages-1G
@@ -103,6 +101,12 @@ jobs:
         with:
           build-artifact-name: ${{ inputs.build-artifact-name }}
           wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - name: Set up env vars for watcher
+        if: inputs.enable-watcher == true
+        run: |
+          echo "TT_METAL_WATCHER=1" >> $GITHUB_ENV
+          echo "TT_METAL_WATCHER_APPEND=1" >> $GITHUB_ENV
+          echo "TT_METAL_WATCHER_NOINLINE=1" >> $GITHUB_ENV
       - name: Run profiler regression tests
         timeout-minutes: ${{ inputs.timeout }}
         run: |

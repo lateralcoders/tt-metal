@@ -84,7 +84,7 @@ jobs:
           docker_opts: |
             -e ARCH_NAME=${{ inputs.arch }}
             -e GITHUB_ACTIONS=true
-            ${{ inputs.enable-watcher == true && '-e TT_METAL_WATCHER=1 -e TT_METAL_WATCHER_APPEND=1' || '' }}
+            ${{ inputs.enable-watcher == true && '-e TT_METAL_WATCHER=1 -e TT_METAL_WATCHER_APPEND=1 -e TT_METAL_WATCHER_NOINLINE=1' || '' }}
           run_args: |
             source tests/scripts/run_python_model_tests.sh && run_python_model_tests_${{ inputs.arch }}
       - uses: ./.github/actions/slack-report
