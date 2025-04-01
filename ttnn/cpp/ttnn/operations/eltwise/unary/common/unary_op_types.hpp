@@ -93,7 +93,6 @@ enum class UnaryOpType {
     PRELU_SFPU,
     ZERO_POINT,
     MISH,
-    SIGMOID_MODE,
 };
 
 struct UnaryWithParam {
