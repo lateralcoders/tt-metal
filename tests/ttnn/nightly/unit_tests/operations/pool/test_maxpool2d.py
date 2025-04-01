@@ -146,8 +146,6 @@ def run_max_pool(
         if in_c / cores_x < 16:
             pytest.skip("Block sharding requires large enough channels to shard (at least 16 per core)")
 
-    print("X2:", is_x2_harvested(device))
-
     torch.manual_seed(0)
     torch.set_printoptions(precision=3, sci_mode=False, linewidth=500, threshold=10000, edgeitems=32)
 

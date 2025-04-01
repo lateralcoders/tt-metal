@@ -250,8 +250,6 @@ def test_max_pool2d_localrun(device, dtype, input_spec):
 @pytest.mark.parametrize("in_place", parameters["test_run_max_pool_height_shard"]["in_place"])
 @pytest.mark.parametrize("device_params", [{"l1_small_size": 16384}], indirect=True)
 def test_max_pool2d_localrun(device, dtype, in_place, input_spec):
-    if dtype == ttnn.bfloat8_b and in_place:
-        pytest.xfail("BFloat8 is not currently supported when using in-place halo")
     (
         batch_size,
         input_channels,
@@ -332,8 +330,6 @@ def test_run_max_pool(device, dtype, input_spec):
 @pytest.mark.parametrize("in_place", parameters["test_run_max_pool_width_shard"]["in_place"])
 @pytest.mark.parametrize("device_params", [{"l1_small_size": 16384}], indirect=True)
 def test_run_max_pool_width_shard(device, dtype, in_place, input_spec):
-    if dtype == ttnn.bfloat8_b and in_place:
-        pytest.xfail("BFloat8 is not currently supported when using in-place halo")
     (
         batch_size,
         input_channels,
@@ -375,8 +371,6 @@ def test_run_max_pool_width_shard(device, dtype, in_place, input_spec):
 @pytest.mark.parametrize("in_place", parameters["test_run_max_pool_block_shard"]["in_place"])
 @pytest.mark.parametrize("device_params", [{"l1_small_size": 16384}], indirect=True)
 def test_run_max_pool_block_shard(device, dtype, in_place, input_spec):
-    if dtype == ttnn.bfloat8_b and in_place:
-        pytest.xfail("BFloat8 is not currently supported when using in-place halo")
     (
         batch_size,
         input_channels,

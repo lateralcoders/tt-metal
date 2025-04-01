@@ -332,7 +332,6 @@ operation::ProgramWithCallbacks inplace_untilize_with_halo_multi_core_v2(
     TT_ASSERT(dst_buffer != nullptr, "Output buffer should be allocated on device!");
 
     const bool skip_untilize = input_tensor.get_layout() == Layout::ROW_MAJOR;
-    // TT_FATAL(input_tensor.get_layout() == Layout::ROW_MAJOR, "In-place halo only supports row-major inputs for now");
 
     auto input_shape = input_tensor.get_padded_shape();
     auto output_shape = output_tensor.get_padded_shape();
