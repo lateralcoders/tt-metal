@@ -20,7 +20,9 @@ def _nearest_32(x):
 
 
 Conv2dConfig = ttnn._ttnn.operations.conv.Conv2dConfig
-ConvSliceConfig = ttnn._ttnn.operations.conv.ConvSliceConfig
+Conv2dSliceConfig = ttnn._ttnn.operations.conv.Conv2dSliceConfig
+Conv2dSliceHeight = ttnn._ttnn.operations.conv.Conv2dSliceConfig.SliceTypeEnum.SliceHeight
+Conv2dSliceWidth = ttnn._ttnn.operations.conv.Conv2dSliceConfig.SliceTypeEnum.SliceWidth
 
 OptimizedConvParallelizationConfig = ttnn._ttnn.operations.conv.OptimizedConvParallelizationConfig
 OptimizedConvBlockConfig = ttnn._ttnn.operations.conv.OptimizedConvBlockConfig
@@ -181,7 +183,7 @@ def conv2d(
     conv_config: Conv2dConfig = None,  # config overrides by user
     compute_config=None,  # compute config overrides by user
     memory_config: ttnn.MemoryConfig = None,  # memory config overrides by user
-    slice_config: ConvSliceConfig = None,  # slice config overrides by user
+    slice_config: Conv2dSliceConfig = None,  # slice config overrides by user
     conv_op_cache={},  # basic conv object caching in python needed for intermediate refactoring. Not needed after full op refactoring in C++.
     debug=False,  # ignored
     return_output_dim=False,
