@@ -1,0 +1,24 @@
+name: "Common Post Steps"
+description: "Consolidated post steps for TT Metal"
+runs:
+  using: "composite"
+  steps:
+    - uses: ./.github/actions/slack-report
+      if: ${{ failure() }}
+      with:
+        slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        owner: U06CXU895AP # Michael Chiou
+    - uses: tenstorrent/tt-metal/.github/actions/upload-artifact-with-job-uuid@main
+      timeout-minutes: 10
+      if: ${{ !cancelled() }}
+      with:
+        path: /work/generated/test_reports/
+        prefix: "test_reports_"
+    - name: Generate system logs on failure
+      if: ${{ failure() }}
+      uses: ./.github/actions/generate-system-logs
+    - name: Generate gtest annotations on failure
+      if: ${{ failure() }}
+      uses: ./.github/actions/generate-gtest-failure-message
+      with:
+        path: /work/generated/test_reports/
