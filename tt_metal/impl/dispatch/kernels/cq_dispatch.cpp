@@ -12,6 +12,7 @@
 
 #include "dataflow_api.h"
 #include "debug/assert.h"
+#include "debug/pause.h"
 #include "debug/dprint.h"
 #include "tt_metal/impl/dispatch/kernels/cq_commands.hpp"
 #include "tt_metal/impl/dispatch/kernels/cq_common.hpp"
@@ -62,11 +63,20 @@ constexpr uint32_t upstream_mesh_id = get_compile_time_arg_val(31);
 constexpr uint32_t upstream_dev_id = get_compile_time_arg_val(32);
 constexpr uint32_t fabric_router_noc_xy = get_compile_time_arg_val(33);
 constexpr uint32_t client_interface_addr = get_compile_time_arg_val(34);
+constexpr uint32_t header_rb = get_compile_time_arg_val(35);
+constexpr uint32_t header_rb_size = 64 * 48;
+constexpr uint32_t header_rb_entries = header_rb_size / tt::tt_fabric::PACKET_HEADER_SIZE_BYTES;
+#ifdef FVC_MODE_PULL
+constexpr uint32_t client_interface_size = tt::tt_fabric::PULL_CLIENT_INTERFACE_SIZE;
+#else
+constexpr uint32_t client_interface_size = tt::tt_fabric::PUSH_CLIENT_INTERFACE_SIZE;
+#endif
+constexpr uint32_t client_interface_rb_entries = 32;
 
-constexpr uint32_t first_stream_used = get_compile_time_arg_val(35);
+constexpr uint32_t first_stream_used = get_compile_time_arg_val(36);
 
-constexpr uint32_t is_d_variant = get_compile_time_arg_val(36);
-constexpr uint32_t is_h_variant = get_compile_time_arg_val(37);
+constexpr uint32_t is_d_variant = get_compile_time_arg_val(37);
+constexpr uint32_t is_h_variant = get_compile_time_arg_val(38);
 
 constexpr uint8_t upstream_noc_index = UPSTREAM_NOC_INDEX;
 constexpr uint32_t upstream_noc_xy = uint32_t(NOC_XY_ENCODING(UPSTREAM_NOC_X, UPSTREAM_NOC_Y));
@@ -104,8 +114,19 @@ static uint32_t write_offset[3];  // added to write address on non-host writes
 
 static uint32_t upstream_total_acquired_page_count;
 
-static auto client_interface =
-    reinterpret_cast<volatile tt_l1_ptr tt::tt_fabric::fabric_pull_client_interface_t*>(client_interface_addr);
+inline uint32_t get_fabric_header() {
+    constexpr uint32_t header_rb_mask = header_rb_entries - 1;
+    uint32_t addr = header_rb + ((fabric_header_rb_index & header_rb_mask) * tt::tt_fabric::PACKET_HEADER_SIZE_BYTES);
+    // fabric_header_rb_index = fabric_header_rb_index + 1;
+    return addr;
+}
+
+inline volatile tt::tt_fabric::fabric_pull_client_interface_t* get_fabric_interface() {
+    constexpr uint32_t rb_mask = client_interface_rb_entries - 1;
+    uint32_t addr = client_interface_addr + ((fabric_client_interface_rb_index & rb_mask) * client_interface_size);
+    fabric_client_interface_rb_index = fabric_client_interface_rb_index + 1;
+    return reinterpret_cast<volatile tt::tt_fabric::fabric_pull_client_interface_t*>(addr);
+}
 
 constexpr uint32_t packed_write_max_multicast_sub_cmds =
     get_packed_write_max_multicast_sub_cmds(packed_write_max_unicast_sub_cmds);
@@ -364,7 +385,8 @@ void relay_to_next_cb(
                             downstream_dev_id,
                             fabric_router_noc_xy,
                             tt::tt_fabric::ClientDataMode::RAW_DATA>(
-                            client_interface,
+                            get_fabric_interface(),
+                            get_fabric_header(),
                             data_ptr,
                             get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr),
                             orphan_size);
@@ -389,7 +411,8 @@ void relay_to_next_cb(
                     dispatch_cb_blocks,
                     downstream_mesh_id,
                     downstream_dev_id,
-                    fabric_router_noc_xy>(client_interface, block_noc_writes_to_clear, rd_block_idx);
+                    fabric_router_noc_xy>(
+                    get_fabric_interface(), get_fabric_header(), block_noc_writes_to_clear, rd_block_idx);
             }
 
             // Wait for dispatcher to supply a page (this won't go beyond the buffer end)
@@ -406,14 +429,18 @@ void relay_to_next_cb(
             downstream_dev_id,
             fabric_router_noc_xy,
             tt::tt_fabric::ClientDataMode::RAW_DATA>(
-            client_interface, data_ptr, get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr), xfer_size);
+            get_fabric_interface(),
+            get_fabric_header(),
+            data_ptr,
+            get_noc_addr_helper(downstream_noc_xy, downstream_cb_data_ptr),
+            xfer_size);
         relay_cb_release_pages<
             downstream_mesh_id,
             downstream_dev_id,
             fabric_router_noc_xy,
             my_noc_index,
             downstream_noc_xy,
-            downstream_cb_sem_id>(client_interface, 1);
+            downstream_cb_sem_id>(get_fabric_interface(), get_fabric_header(), 1);
 
         length -= xfer_size;
         data_ptr += xfer_size;
@@ -1203,14 +1230,14 @@ re_run_command:
             break;
 
         default:
-            DPRINT << "dispatcher_d invalid command:" << cmd_ptr << " " << cb_fence << " " << dispatch_cb_base << " "
-                   << dispatch_cb_end << " " << rd_block_idx << " "
+            DPRINT << "dispatcher_d invalid command:" << (uint32_t)cmd->base.cmd_id << " ptr: " << HEX() << cmd_ptr
+                   << " " << cb_fence << " " << dispatch_cb_base << " " << dispatch_cb_end << " " << rd_block_idx << " "
                    << "xx" << ENDL();
             DPRINT << HEX() << *(uint32_t*)cmd_ptr << ENDL();
             DPRINT << HEX() << *((uint32_t*)cmd_ptr + 1) << ENDL();
             DPRINT << HEX() << *((uint32_t*)cmd_ptr + 2) << ENDL();
             DPRINT << HEX() << *((uint32_t*)cmd_ptr + 3) << ENDL();
-            WAYPOINT("!CMD");
+            WAYPOINT("@CMD");
             ASSERT(0);
     }
 
@@ -1246,7 +1273,7 @@ static inline bool process_cmd_h(
             break;
 
         default:
-            DPRINT << "dispatcher_h invalid command:" << cmd_ptr << " " << cb_fence << " "
+            DPRINT << "dispatcher_h invalid command:" << HEX() << cmd_ptr << " " << cb_fence << " "
                    << " " << dispatch_cb_base << " " << dispatch_cb_end << " " << rd_block_idx << " "
                    << "xx" << ENDL();
             DPRINT << HEX() << *(uint32_t*)cmd_ptr << ENDL();
@@ -1261,9 +1288,11 @@ static inline bool process_cmd_h(
 }
 
 void kernel_main() {
-    // DPRINT << "dispatch_" << is_h_variant << is_d_variant << ": start" << ENDL();
     if constexpr (use_fabric(fabric_router_noc_xy)) {
-        tt::tt_fabric::fabric_endpoint_init(client_interface, 0 /*unused*/);
+        DPRINT << "dispatch_" << is_h_variant << is_d_variant << ": start (fabric)" << ENDL();
+        for (uint32_t i = 0; i < client_interface_rb_entries; ++i) {
+            tt::tt_fabric::fabric_endpoint_init(get_fabric_interface(), 0 /*unused*/);
+        }
     }
 
     // Initialize local state of any additional nocs used instead of the default
