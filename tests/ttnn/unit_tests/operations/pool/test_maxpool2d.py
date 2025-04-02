@@ -265,6 +265,8 @@ def test_max_pool2d_localrun(device, dtype, in_place, input_spec):
         dilation_w,
         ceil_mode,
     ) = input_spec
+    if (kernel_height > 5 or kernel_width > 5) and in_place and dtype == ttnn.bfloat8_b:
+        pytest.skip("this case runs out of memory due to combination of large remote temp CB and large untilize out CB")
     run_max_pool2d(
         batch_size,
         input_channels,
