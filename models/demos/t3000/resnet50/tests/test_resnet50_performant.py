@@ -23,7 +23,7 @@ from models.demos.ttnn_resnet.tests.resnet50_performant import (
 )
 @pytest.mark.parametrize("enable_async_mode", [True], indirect=True)
 def test_run_resnet50_inference(
-    mesh_device,
+    t3k_mesh_device,
     use_program_cache,
     device_batch_size,
     act_dtype,
@@ -33,7 +33,7 @@ def test_run_resnet50_inference(
     model_location_generator,
 ):
     run_resnet50_inference(
-        mesh_device,
+        t3k_mesh_device,
         device_batch_size,
         act_dtype,
         weight_dtype,
@@ -50,7 +50,7 @@ def test_run_resnet50_inference(
 )
 @pytest.mark.parametrize("enable_async_mode", [True], indirect=True)
 def test_run_resnet50_trace_inference(
-    mesh_device,
+    t3k_mesh_device,
     use_program_cache,
     device_batch_size,
     act_dtype,
@@ -60,7 +60,7 @@ def test_run_resnet50_trace_inference(
     model_location_generator,
 ):
     run_resnet50_trace_inference(
-        mesh_device,
+        t3k_mesh_device,
         device_batch_size,
         act_dtype,
         weight_dtype,
@@ -77,7 +77,7 @@ def test_run_resnet50_trace_inference(
 )
 @pytest.mark.parametrize("enable_async_mode", [True], indirect=True)
 def test_run_resnet50_2cqs_inference(
-    mesh_device,
+    t3k_mesh_device,
     use_program_cache,
     device_batch_size,
     act_dtype,
@@ -87,7 +87,7 @@ def test_run_resnet50_2cqs_inference(
     model_location_generator,
 ):
     run_resnet50_2cqs_inference(
-        mesh_device,
+        t3k_mesh_device,
         device_batch_size,
         act_dtype,
         weight_dtype,
@@ -106,7 +106,7 @@ def test_run_resnet50_2cqs_inference(
 )
 @pytest.mark.parametrize("enable_async_mode", [True], indirect=True)
 def test_run_resnet50_trace_2cqs_inference(
-    mesh_device,
+    t3k_mesh_device,
     use_program_cache,
     device_batch_size,
     act_dtype,
@@ -116,7 +116,7 @@ def test_run_resnet50_trace_2cqs_inference(
     model_location_generator,
 ):
     run_resnet50_trace_2cqs_inference(
-        mesh_device,
+        t3k_mesh_device,
         device_batch_size,
         act_dtype,
         weight_dtype,
