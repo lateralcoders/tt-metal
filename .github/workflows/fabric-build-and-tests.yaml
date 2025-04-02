@@ -23,7 +23,40 @@ on:
         required: true
         type: string
 
+env:
+  ARCH_NAME: ${{ inputs.arch }}
+  LOGURU_LEVEL: INFO
+  LD_LIBRARY_PATH: /work/build/lib
+  PYTHONPATH: /work
+  TT_METAL_HOME: /work
+  TT_METAL_SLOW_DISPATCH_MODE: 1
+  TT_METAL_CLEAR_L: 1
+  GTEST_OUTPUT: xml:/work/generated/test_reports/
+
 jobs:
+  placeholders-job:
+    if: false
+    steps: &common-post-steps
+      - uses: ./.github/actions/slack-report
+        if: ${{ failure() }}
+        with:
+          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          owner: U06CXU895AP # Michael Chiou
+      - uses: tenstorrent/tt-metal/.github/actions/upload-artifact-with-job-uuid@main
+        timeout-minutes: 10
+        if: ${{ !cancelled() }}
+        with:
+          path: /work/generated/test_reports/
+          prefix: "test_reports_"
+      - name: Generate system logs on failure
+        if: ${{ failure() }}
+        uses: ./.github/actions/generate-system-logs
+      - name: Generate gtest annotations on failure
+        if: ${{ failure() }}
+        uses: ./.github/actions/generate-gtest-failure-message
+        with:
+          path: /work/generated/test_reports/
+
   fabric-tests:
     strategy:
       # Do not fail-fast because we need to ensure all tests go to completion
@@ -31,21 +64,13 @@ jobs:
       fail-fast: false
       matrix:
         test-group: [
-          {name: fabric unit tests, cmd: ./tests/scripts/run_cpp_fabric_tests.sh },
-          {name: fabric sanity tests, cmd: ./tests/scripts/run_cpp_fabric_sanity_tests.sh },
+          {name: unit tests slow dispatch, cmd: TT_METAL_SLOW_DISPATCH_MODE=1 ./build/test/tt_metal/tt_fabric/fabric_unit_tests --gtest_filter="Fabric2D*Fixture.*" },
+          {name: unit tests fast dispatch, cmd: ./build/test/tt_metal/tt_fabric/fabric_unit_tests --gtest_filter="Fabric2D*Fixture.*" }
         ]
     name: ${{ inputs.arch }} ${{ inputs.runner-label }} ${{ matrix.test-group.name }}
     runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
     container:
       image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
-      env:
-        ARCH_NAME: ${{ inputs.arch }}
-        LOGURU_LEVEL: INFO
-        LD_LIBRARY_PATH: /work/build/lib
-        PYTHONPATH: /work
-        TT_METAL_HOME: /work
-        TT_METAL_SLOW_DISPATCH_MODE: 1
-        GTEST_OUTPUT: xml:/work/generated/test_reports/
       volumes:
         - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
         - /dev/hugepages-1G:/dev/hugepages-1G
@@ -65,22 +90,189 @@ jobs:
         timeout-minutes: ${{ inputs.timeout }}
         run: |
           ${{ matrix.test-group.cmd }}
-      - uses: ./.github/actions/slack-report
-        if: ${{ failure() }}
-        with:
-          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-          owner: U06CXU895AP # Michael Chiou
-      - uses: tenstorrent/tt-metal/.github/actions/upload-artifact-with-job-uuid@main
+      - *common-post-steps
+
+  async-write-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
         timeout-minutes: 10
-        if: ${{ !cancelled() }}
         with:
-          path: /work/generated/test_reports/
-          prefix: "test_reports_"
-      - name: Generate system logs on failure
-        uses: ./.github/actions/generate-system-logs
-        if: ${{ failure() }}
-      - name: Generate gtest annotations on failure
-        uses: ./.github/actions/generate-gtest-failure-message
-        if: ${{ failure() }}
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          TT_METAL_SLOW_DISPATCH_MODE=1 ./build/test/tt_metal/perf_microbenchmark/routing/test_tt_fabric_sanity_${{ env.ARCH_NAME }} --fabric_command 1 --board_type n300 --data_kb_per_tx 10 --num_src_endpoints 20 --num_dest_endpoints 8 --num_links 16
+          TT_METAL_SLOW_DISPATCH_MODE=1 ./build/test/tt_metal/perf_microbenchmark/routing/test_tt_fabric_sanity_${{ env.ARCH_NAME }} --fabric_command 1 --board_type n300 --data_kb_per_tx 10 --num_src_endpoints 8 --num_dest_endpoints 8 --num_links 16 --benchmark
+      - *common-post-steps
+
+  async-write-mcast-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
+        timeout-minutes: 10
         with:
-          path: /work/generated/test_reports/
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          # ...test #5, #6, #7 from run_cpp_fabric_sanity_tests.sh...
+      - *common-post-steps
+
+  atomic-inc-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
+        timeout-minutes: 10
+        with:
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          # ...test #8, #9...
+      - *common-post-steps
+
+  async-write-atomic-inc-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
+        timeout-minutes: 10
+        with:
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          # ...test #10, #11...
+      - *common-post-steps
+
+  async-write-with-push-router-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
+        timeout-minutes: 10
+        with:
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          # ...test #12, #13, #14, #15...
+      - *common-post-steps
+
+  async-write-mcast-with-push-router-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
+        timeout-minutes: 10
+        with:
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          # ...test #16, #17, #18...
+      - *common-post-steps
+
+  atomic-inc-with-push-router-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
+        timeout-minutes: 10
+        with:
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          # ...test #19, #20...
+      - *common-post-steps
+
+  async-write-atomic-inc-with-push-router-tests:
+    runs-on: ${{ startsWith(inputs.runner-label, 'tt-beta-ubuntu') && fromJSON(format('["{0}"]', inputs.runner-label)) || fromJSON(format('["{0}", "in-service", "cloud-virtual-machine"]', inputs.runner-label)) }}
+    container:
+      image: ${{ inputs.docker-image || 'docker-image-unresolved' }}
+      volumes:
+        - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
+        - /dev/hugepages-1G:/dev/hugepages-1G
+      options: "--device /dev/tenstorrent"
+    defaults:
+      run:
+        shell: bash
+        working-directory: /work # https://github.com/actions/runner/issues/878
+    steps:
+      - name: ⬇️  Setup Job
+        uses: tenstorrent/tt-metal/.github/actions/setup-job@main
+        timeout-minutes: 10
+        with:
+          build-artifact-name: ${{ inputs.build-artifact-name }}
+          wheel-artifact-name: ${{ inputs.wheel-artifact-name }}
+      - run: |
+          # ...test #21, #22...
+      - *common-post-steps
