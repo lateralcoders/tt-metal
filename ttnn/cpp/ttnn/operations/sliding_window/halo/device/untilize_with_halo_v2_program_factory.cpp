@@ -374,8 +374,7 @@ operation::ProgramWithCallbacks inplace_untilize_with_halo_multi_core_v2(
         uint32_t output_ntiles = ntiles_per_block * input_nblocks_per_core;
         auto untilize_out_cb_config =
             CircularBufferConfig(output_ntiles * out_tile_size, {{cb_indices.untilize_out_cb_id, out_df}})
-                .set_page_size(cb_indices.untilize_out_cb_id, out_tile_size)
-                .set_globally_allocated_address(*dst_buffer);
+                .set_page_size(cb_indices.untilize_out_cb_id, out_tile_size);
         auto untilize_out_cb = CreateCircularBuffer(program, all_cores, untilize_out_cb_config);
         log_debug(
             tt::LogOp,
