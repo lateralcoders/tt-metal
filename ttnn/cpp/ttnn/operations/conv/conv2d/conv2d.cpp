@@ -61,7 +61,6 @@ Result conv2d(
     auto [output_height, output_width] =
         calculate_output_image_size({input_height, input_width}, kernel_size, stride, padding_n4, dilation);
 
-
     DeviceComputeKernelConfig compute_config = compute_config_.value_or(get_conv_default_compute_kernel_config(device));
 
     const auto compute_grid_size = device->compute_with_storage_grid_size();
@@ -77,7 +76,7 @@ Result conv2d(
             out_channels,
             output_height,
             output_width,
-            weight_tensor.get_logical_shape()[3],
+            weight_tensor.get_logical_shape().rank() == 4 ? weight_tensor.get_logical_shape()[3] : 1,  // weights_width
             input_height,
             input_width,
             compute_grid_size,
@@ -125,6 +124,12 @@ Result conv2d(
     if (!weight_is_on_device || conv_config.always_preprocess_weights) {
         // prepare weights in desired layout and move to device
 
+        // Override weight shape if 1D conv with 3D weight tensor
+        std::optional<ttnn::Shape> weight_shape_override = std::nullopt;
+        if (is_1d_conv(kernel_size[1], input_width) && weight_tensor.get_logical_shape().rank() == 3) {
+            weight_shape_override = ttnn::Shape({out_channels, in_channels / groups, kernel_size[0], 1});
+        }
+
         // TODO: Implement heuristic to decide if weights should be preprocessed on device.
         if (conv_config.preprocess_weights_on_device == false) {
             tie(weight_tensor_on_device, bias_tensor_on_device) = prepare_conv_weights_biases_and_move_to_device(
@@ -140,7 +145,8 @@ Result conv2d(
                 groups,
                 opt_conv_op_block_config.act_block_h_ntiles,
                 input_width,
-                true);
+                true,
+                weight_shape_override);
         } else {
             tie(weight_tensor_on_device, bias_tensor_on_device) = prepare_conv_weights_biases_on_device(
                 weight_tensor,
@@ -155,7 +161,8 @@ Result conv2d(
                 groups,
                 opt_conv_op_block_config.act_block_h_ntiles,
                 input_width,
-                true);
+                true,
+                weight_shape_override);
         }
     }
     // if 1x1 conv w/ stride 1, convert input tensor to tile layout if required
