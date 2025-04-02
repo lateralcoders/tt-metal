@@ -236,8 +236,6 @@ def run_conv(
         input_width=input_width,
         conv_config=conv_config,
         compute_config=compute_config,
-        conv_op_cache=reader_patterns_cache,
-        debug=debug,
         groups=groups,
         memory_config=memory_config,
         return_output_dim=True,
@@ -260,8 +258,6 @@ def run_conv(
             input_width=input_width,
             conv_config=conv_config,
             compute_config=compute_config,
-            conv_op_cache=reader_patterns_cache,
-            debug=debug,
             groups=groups,
             memory_config=memory_config,
             return_output_dim=True,
@@ -421,7 +417,6 @@ def run_conv_with_split(
             input_width=input_width,
             conv_config=conv_config,
             compute_config=compute_config,
-            conv_op_cache=reader_patterns_cache,
             return_output_dim=True,
         )
         tt_conv_output_tensor = ttnn.from_device(tt_output_tensor_on_device)
@@ -752,8 +747,6 @@ def test_conv_ws(
         input_width=input_width,
         conv_config=conv_config,
         compute_config=compute_config,
-        conv_op_cache=reader_patterns_cache,
-        debug=debug,
         groups=groups,
         return_output_dim=True,
     )
