@@ -421,11 +421,12 @@ void PrefetchKernel::CreateKernel() {
         compile_args,
         defines,
         false,
-        false,
+        true,
         // TEMP: Disable function inlining on Prefetcher when watcher is enabled but no_inline is not specified to
         // respect code space
         tt::llrt::RunTimeOptions::get_instance().get_watcher_enabled() &&
-            (not tt::llrt::RunTimeOptions::get_instance().get_watcher_noinline()));
+            (not tt::llrt::RunTimeOptions::get_instance().get_watcher_noinline()),
+        KernelBuildOptLevel::O2);
 }
 
 void PrefetchKernel::ConfigureCore() {
