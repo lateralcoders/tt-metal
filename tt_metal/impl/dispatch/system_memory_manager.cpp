@@ -143,7 +143,6 @@ void SystemMemoryManager::increment_event_id(const uint8_t cq_id, const uint32_t
 }
 
 void SystemMemoryManager::set_last_completed_event(const uint8_t cq_id, const uint32_t event_id) {
-    cq_to_event_locks[cq_id].lock();
     TT_ASSERT(
         event_id >= this->cq_to_last_completed_event[cq_id],
         "Event ID is expected to increase. Wrapping not supported for sync. Completed event {} but last recorded "
@@ -151,6 +150,7 @@ void SystemMemoryManager::set_last_completed_event(const uint8_t cq_id, const ui
         event_id,
         this->cq_to_last_completed_event[cq_id]);
 
+    cq_to_event_locks[cq_id].lock();
     this->cq_to_last_completed_event[cq_id] = event_id;
     cq_to_event_locks[cq_id].unlock();
 }
