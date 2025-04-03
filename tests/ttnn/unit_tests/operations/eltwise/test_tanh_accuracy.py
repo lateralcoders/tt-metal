@@ -63,7 +63,41 @@ def test_tanh_range(device):
     output_tensor = ttnn.tanh(input_tensor_a, memory_config=ttnn.DRAM_MEMORY_CONFIG, accuracy=True)
 
     output_tensor = ttnn.to_torch(output_tensor)
+    print(output_tensor.shape, torch_output_tensor.shape)
+    print(output_tensor, torch_output_tensor)
+    pcc, pcc_msg = assert_with_pcc(torch_output_tensor, output_tensor, 0.999)
+    print(
+        "pcc_msg", pcc_msg
+    )  # pcc_msg 0.9999663646890817, accuracy=False pcc 0.9978378297942829 , dev pcc_msg 0.9999669593009368
+    assert pcc
 
+
+def test_tanh_single(device):
+    torch_input_tensor_a = torch.tensor(
+        [
+            [
+                [
+                    [
+                        -1.8125,
+                    ]
+                ]
+            ]
+        ],
+        dtype=torch.bfloat16,
+    )
+    torch_output_tensor = torch.tanh(torch_input_tensor_a)
+    input_tensor_a = ttnn.from_torch(
+        torch_input_tensor_a,
+        layout=ttnn.TILE_LAYOUT,
+        dtype=ttnn.bfloat16,
+        device=device,
+        memory_config=ttnn.DRAM_MEMORY_CONFIG,
+    )
+    output_tensor = ttnn.tanh(input_tensor_a, memory_config=ttnn.DRAM_MEMORY_CONFIG, accuracy=True)
+
+    output_tensor = ttnn.to_torch(output_tensor)
+    print(output_tensor.shape, torch_output_tensor.shape)
+    print(output_tensor, torch_output_tensor)
     pcc, pcc_msg = assert_with_pcc(torch_output_tensor, output_tensor, 0.999)
     # print("pcc_msg", pcc_msg) # pcc_msg 0.9999663646890817, accuracy=False pcc 0.9978378297942829
     assert pcc
@@ -98,5 +132,5 @@ def test_tanh_accuracy(device, input_shapes, input_range):
     output = ttnn.tanh(input_tensor, accuracy=True)
     output_tensor = ttnn.to_torch(output)
     pcc, pcc_msg = assert_with_pcc(torch_output_tensor, output_tensor, 0.999)
-    # print("pcc_msg", pcc_msg)  # pcc_msg 0.9999 or above
+    print("pcc_msg", pcc_msg)  # pcc_msg 0.9999 or above
     assert pcc

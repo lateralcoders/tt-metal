@@ -12,6 +12,7 @@
 #include "ttnn/operations/eltwise/complex/complex.hpp"
 #include "ttnn/operations/eltwise/binary/binary_composite.hpp"
 #include "ttnn/operations/eltwise/ternary/where.hpp"
+#include "ttnn/operations/eltwise/unary/tanh_accurate/tanh_accurate.hpp"
 
 namespace ttnn::operations::unary {
 
@@ -223,14 +224,29 @@ Tensor Tanh::invoke(
             input_tensor.get_dtype() == DataType::BFLOAT16,
             "Supported dtypes for tanh with accuracy mode enabled is : BFLOAT16");
 
-        const auto tanh_res = detail::unary_impl(queue_id, input_tensor, {UnaryWithParam{op_type}}, memory_config);
-        const auto two_x = ttnn::multiply(input_tensor, 2, std::nullopt, memory_config);
-        const auto exp_2x = ttnn::exp(two_x, false, memory_config, two_x);
-        const auto numer = ttnn::subtract(exp_2x, 1, std::nullopt, memory_config);
-        const auto denom = ttnn::add_(exp_2x, 1);
-        const auto tanh_exp = ttnn::divide(numer, denom, std::nullopt, memory_config, numer);
-        const auto abs_val = ttnn::abs(input_tensor, memory_config);
-        return ttnn::where(ttnn::gt(abs_val, 3.5f), tanh_res, tanh_exp, memory_config, optional_output_tensor);
+        // const auto tanh_res = detail::unary_impl(queue_id, input_tensor, {UnaryWithParam{op_type}}, memory_config);
+        // tt::log_info(tt::LogOp, " ****** lut value");
+        // tanh_res.print();
+        // const auto two_x = ttnn::multiply(input_tensor, 2, std::nullopt, memory_config);
+        // tt::log_info(tt::LogOp, " ****** two_x value");
+        // two_x.print();
+        // const auto exp_2x = ttnn::exp(two_x, false, memory_config, two_x);
+        // tt::log_info(tt::LogOp, " ****** exp_2x value");
+        // exp_2x.print();
+        // const auto numer = ttnn::subtract(exp_2x, 1, std::nullopt, memory_config);
+        // tt::log_info(tt::LogOp, " ****** numer value");
+        // numer.print();
+        // const auto denom = ttnn::add_(exp_2x, 1);
+        // tt::log_info(tt::LogOp, " ****** denom value");
+        // denom.print();
+        // const auto tanh_exp = ttnn::divide(numer, denom, std::nullopt, memory_config, numer);
+        // tt::log_info(tt::LogOp, " ****** tanh_exp value");
+        // tanh_exp.print();
+        // const auto abs_val = ttnn::abs(input_tensor, memory_config);
+        // return ttnn::where(ttnn::gt(abs_val, 3.5f), tanh_res, tanh_exp, memory_config, optional_output_tensor);
+
+        tt::log_info(tt::LogOp, " ****** using new tanh kernel");
+        return ttnn::tanh_accurate(queue_id, input_tensor, memory_config, optional_output_tensor);
     }
 }
 
