@@ -111,6 +111,7 @@ operation::ProgramWithCallbacks HaloDeviceOperation::create_program(
             is_block_sharded,
             transpose_mcast_,
             remote_read_,
+            is_in_tiled,
             device,
             max_out_nsticks_per_core_,
             in_nsticks_per_core_,

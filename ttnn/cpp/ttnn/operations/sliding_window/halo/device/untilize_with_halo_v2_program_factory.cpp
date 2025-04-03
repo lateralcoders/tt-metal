@@ -374,7 +374,8 @@ operation::ProgramWithCallbacks inplace_untilize_with_halo_multi_core_v2(
         uint32_t output_ntiles = ntiles_per_block * input_nblocks_per_core;
         auto untilize_out_cb_config =
             CircularBufferConfig(output_ntiles * out_tile_size, {{cb_indices.untilize_out_cb_id, out_df}})
-                .set_page_size(cb_indices.untilize_out_cb_id, out_tile_size);
+                .set_page_size(cb_indices.untilize_out_cb_id, out_tile_size)
+                .set_globally_allocated_address(*dst_buffer);  // untilize into the dst buffer for in place untilize
         auto untilize_out_cb = CreateCircularBuffer(program, all_cores, untilize_out_cb_config);
         log_debug(
             tt::LogOp,
@@ -466,6 +467,9 @@ operation::ProgramWithCallbacks inplace_untilize_with_halo_multi_core_v2(
     std::vector<uint32_t> output_tensor_cores_x;
     std::vector<uint32_t> output_tensor_cores_y;
     int32_t in_out_buffer_start_delta = max_out_nsticks_per_core - input_npages;
+    if (!skip_untilize) {
+        in_out_buffer_start_delta = 0;
+    }
     const auto delta = output_tensor.buffer()->aligned_size_per_bank() - input_tensor.buffer()->aligned_size_per_bank();
     TT_ASSERT(
         src_buffer->sharded_page_address(0, 0) == dst_buffer->sharded_page_address(0, 0) + delta,
@@ -523,7 +527,7 @@ operation::ProgramWithCallbacks inplace_untilize_with_halo_multi_core_v2(
         true,
         cores.size(),
         semaphore_id,
-        max_out_nsticks_per_core};
+        in_out_buffer_start_delta};
 
     reader_ct_args[0] = 0;
     reader_ct_args[1] = cb_indices.local_config_cb_id;

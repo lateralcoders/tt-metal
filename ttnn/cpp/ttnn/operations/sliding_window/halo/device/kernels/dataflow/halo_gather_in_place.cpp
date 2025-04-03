@@ -196,7 +196,7 @@ void kernel_main() {
     constexpr uint32_t remote_read = get_compile_time_arg_val(16);  // Unused parameter
     constexpr uint32_t num_cores = get_compile_time_arg_val(17);
     constexpr uint32_t semaphore_id = get_compile_time_arg_val(18);
-    constexpr uint32_t max_out_nsticks_per_core = get_compile_time_arg_val(19);
+    constexpr uint32_t in_out_buffer_start_delta = get_compile_time_arg_val(19);
 
     uint32_t arg_idx = 0;
     tt_l1_ptr uint32_t* core_noc_x = (tt_l1_ptr uint32_t*)(get_arg_addr(arg_idx));
@@ -234,7 +234,6 @@ void kernel_main() {
     noc_async_write_barrier();
 
     if constexpr (local_config_cb_id) {
-        const int32_t in_out_buffer_start_delta = max_out_nsticks_per_core - in_nsticks;
         uint32_t config_data_l1_addr = get_read_ptr(local_config_cb_id);
         const tt_l1_ptr uint16_t* config_data = reinterpret_cast<const tt_l1_ptr uint16_t*>(config_data_l1_addr);
         copy_sticks_async<stick_nbytes, input_aligned_page_size>(
