@@ -22,6 +22,7 @@
 
 #include "assert.hpp"
 #include "buffers/dispatch.hpp"
+#include "profiler/dispatch.hpp"
 #include "dispatch/device_command.hpp"
 #include "dispatch/dispatch_core_manager.hpp"
 #include "dispatch/host_runtime_commands.hpp"
@@ -277,6 +278,32 @@ void HWCommandQueue::enqueue_write_buffer(
 
     buffer_dispatch::write_to_device_buffer(
         data, buffer_obj, region, this->id_, this->expected_num_workers_completed_, dispatch_core_type, sub_device_ids);
+
+    if (blocking) {
+        this->finish(sub_device_ids);
+    }
+}
+
+void HWCommandQueue::enqueue_read_profiler_control_vector(
+    const CoreCoord& virtual_core, void* dst, bool blocking, tt::stl::Span<const SubDeviceId> sub_device_ids) {
+    ZoneScopedN("HWCommandQueue_enqueue_read_profiler_control_vector");
+
+    const HalProgrammableCoreType core_type = this->device_->get_programmable_core_type(virtual_core);
+    profiler_msg_t* profiler_msg = hal_ref.get_dev_addr<profiler_msg_t*>(core_type, HalL1MemAddrType::PROFILER);
+
+    profiler_dispatch::ProfilerDispatchParams dispatch_params(
+        virtual_core,
+        reinterpret_cast<DeviceAddr>(profiler_msg->control_vector),
+        this->device_,
+        this->id_,
+        this->get_dispatch_core_type(),
+        this->expected_num_workers_completed_,
+        sub_device_ids);
+    profiler_dispatch::issue_read_profiler_control_vector_command_sequence(dispatch_params);
+
+    this->issued_completion_q_reads_.push(
+        profiler_dispatch::generate_profiler_control_vector_read_descriptor(dst, dispatch_params));
+    this->increment_num_entries_in_completion_q();
 
     if (blocking) {
         this->finish(sub_device_ids);
