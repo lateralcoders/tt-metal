@@ -412,7 +412,7 @@ void DispatchKernel::CreateKernel() {
         {"DOWNSTREAM_SLAVE_NOC_X", std::to_string(downstream_s_virtual_noc_coords.x)},
         {"DOWNSTREAM_SLAVE_NOC_Y", std::to_string(downstream_s_virtual_noc_coords.y)},
     };
-    configure_kernel_variant(dispatch_kernel_file_names[DISPATCH], compile_args, defines, false, false, false);
+    configure_kernel_variant(dispatch_kernel_file_names[DISPATCH], compile_args, defines, false, true, false, KernelBuildOptLevel::O2);
 }
 
 void DispatchKernel::ConfigureCore() {
