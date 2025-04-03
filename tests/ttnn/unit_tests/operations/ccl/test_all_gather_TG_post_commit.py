@@ -194,7 +194,7 @@ def run_line_all_gather_on_TG_with_mesh_tensor_along_rows(
     profiler=BenchmarkProfiler(),
     # New all-gather-async and persistent fabric params
     use_all_gather_async=False,
-    enable_persistent_fabric=False,
+    enable_persistent_fabric=True,
     create_persistent_fabric=False,
     teardown_persistent_fabric=False,
     use_persistent_output=False,
