@@ -3,5 +3,5 @@
 #include "debug/dprint.h"
 
 namespace NAMESPACE {
-void MAIN { DPRINT("Hello from my_eltwise kernel!"); }
+void MAIN { DPRINT << "Hello from my_eltwise kernel!" << ENDL(); }
 }  // namespace NAMESPACE

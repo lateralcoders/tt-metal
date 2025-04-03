@@ -2,4 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-void kernel_main() { DPRINT("Hello from my_reader kernel!"); }
+#include "debug/dprint.h"
+
+void kernel_main() { DPRINT << "Hello from my_reader kernel!" << ENDL(); }
