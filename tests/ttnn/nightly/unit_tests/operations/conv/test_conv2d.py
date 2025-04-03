@@ -81,7 +81,6 @@ def run_conv(
     packer_l1_acc=False,
     output_layout=ttnn.TILE_LAYOUT,
     deallocate_activation=False,
-    debug=False,
     groups=1,
     has_bias=True,
     shard_layout=None,
@@ -669,7 +668,6 @@ def test_conv_ws(
     fp32_accum = True
     packer_l1_acc = True
     deallocate_activation = False
-    debug = False
     groups = 1
 
     conv_input_shape = (batch_size, input_channels, input_height, input_width)
@@ -2844,7 +2842,6 @@ def test_conv2d_model_fruit(
         packer_l1_acc=packer_l1_acc,
         output_layout=ttnn.TILE_LAYOUT,
         deallocate_activation=deallocate_activation,
-        debug=False,
         groups=groups,
         has_bias=True,
         shard_layout=None,
@@ -2984,7 +2981,6 @@ def test_conv2d_sdxl(
             packer_l1_acc=packer_l1_acc,
             output_layout=ttnn.TILE_LAYOUT,
             deallocate_activation=deallocate_activation,
-            debug=False,
             groups=groups,
             has_bias=True,
             shard_layout=None,
