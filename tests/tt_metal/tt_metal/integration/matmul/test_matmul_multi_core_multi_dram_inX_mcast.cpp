@@ -39,7 +39,6 @@
 #include "matmul_test_utils.hpp"
 #include <tt-metalium/program_impl.hpp>
 #include "span.hpp"
-#include "tests/tt_metal/test_utils/tilization.hpp"
 #include <tt-metalium/tt_backend_api_types.hpp>
 #include "tt_metal/test_utils/deprecated/tensor.hpp"
 
@@ -388,12 +387,12 @@ bool matmul_multi_core_multi_dram_inX_mcast(tt_metal::IDevice* device, int in1_o
                 per_core_N);
 
     log_debug(LogTest, "Scattering inputs (activation & weights) to dram channels using tiled layout");
-    auto activations_tilized = test_utils::tilize(tensor.get_values(), M * 32, K * 32);
+    auto activations_tilized = tilize(tensor.get_values(), M * 32, K * 32);
     auto activations_tile_layout = convert_to_tile_layout(tt::stl::MakeConstSpan(activations_tilized));
     auto activations = pack_bfloat16_vec_into_uint32_vec(activations_tile_layout);
     pass &= move_tiles_to_dram(device, activations, M, K, in0_dram_addr);
 
-    auto identity_tilized = test_utils::tilize(identity, K * 32, N * 32);
+    auto identity_tilized = tilize(identity, K * 32, N * 32);
     auto weights_tile_layout = convert_to_tile_layout(tt::stl::MakeConstSpan(identity_tilized));
     auto weights = pack_bfloat16_vec_into_uint32_vec(weights_tile_layout);
     pass &= move_tiles_to_dram(device, weights, K, N, in1_dram_addr);

@@ -23,13 +23,13 @@ void tilize_untilize_helper(
 
                 std::vector<T> target = data;
                 if constexpr (tilize_first) {
-                    tilize(data, nrows, ncols);
+                    data = tilize_nfaces(data, nrows, ncols);
                     ASSERT_FALSE(data == target);
-                    untilize(data, nrows, ncols);
+                    data = untilize_nfaces(data, nrows, ncols);
                 } else {
-                    untilize(data, nrows, ncols);
+                    data = tilize_nfaces(data, nrows, ncols);
                     ASSERT_FALSE(data == target);
-                    tilize(data, nrows, ncols);
+                    data = untilize_nfaces(data, nrows, ncols);
                 }
                 ASSERT_TRUE(data == target);
             }
@@ -51,44 +51,44 @@ TEST(Host, TestTilizeAndThenUntilizeBfloat16) {
 
 TEST(Host, TestTilizeThrowErrorForNonBfloat16DataType) {
     std::vector<float> vec(1024, 0);
-    EXPECT_ANY_THROW(tilize(vec, 32, 32));
+    EXPECT_ANY_THROW(tilize_nfaces(vec, 32, 32));
 }
 
 TEST(Host, TestTilizeThrowErrorForInvalidTileMandN) {
     // m and n are not divisible by tile size
     std::vector<bfloat16> vec(16, 0);
-    EXPECT_ANY_THROW(tilize(vec, 4, 4));  // m and n not divisible by 32
-    EXPECT_ANY_THROW(tilize(vec, 0, 4));  // Cannot have 0 shapes
-    EXPECT_ANY_THROW(tilize(vec, 4, 0));
-    EXPECT_ANY_THROW(tilize(vec, 0, 0));
+    EXPECT_ANY_THROW(tilize_nfaces(vec, 4, 4));  // m and n not divisible by 32
+    EXPECT_ANY_THROW(tilize_nfaces(vec, 0, 4));  // Cannot have 0 shapes
+    EXPECT_ANY_THROW(tilize_nfaces(vec, 4, 0));
+    EXPECT_ANY_THROW(tilize_nfaces(vec, 0, 0));
 }
 
 TEST(Host, TestTilizeThrowErrorForInvalidVectorShape) {
     std::vector<bfloat16> vec(16, 0);       // Size not divisible by 1024
-    EXPECT_ANY_THROW(tilize(vec, 32, 32));  // m and n not divisible by 32
+    EXPECT_ANY_THROW(tilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
     vec = {};                               // Cannot have a zero vector either
-    EXPECT_ANY_THROW(tilize(vec, 32, 32));  // m and n not divisible by 32
+    EXPECT_ANY_THROW(tilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
 }
 
 TEST(Host, TestUntilizeThrowErrorForNonBfloat16DataType) {
     std::vector<float> vec(1024, 0);
-    EXPECT_ANY_THROW(untilize(vec, 32, 32));
+    EXPECT_ANY_THROW(untilize_nfaces(vec, 32, 32));
 }
 
 TEST(Host, TestUntilizeThrowErrorForInvalidTileMandN) {
     // m and n are not divisible by tile side lengths
     std::vector<bfloat16> vec(16, 0);
-    EXPECT_ANY_THROW(untilize(vec, 4, 4));
-    EXPECT_ANY_THROW(untilize(vec, 0, 4));
-    EXPECT_ANY_THROW(untilize(vec, 4, 0));
-    EXPECT_ANY_THROW(untilize(vec, 0, 0));
+    EXPECT_ANY_THROW(untilize_nfaces(vec, 4, 4));
+    EXPECT_ANY_THROW(untilize_nfaces(vec, 0, 4));
+    EXPECT_ANY_THROW(untilize_nfaces(vec, 4, 0));
+    EXPECT_ANY_THROW(untilize_nfaces(vec, 0, 0));
 }
 
 TEST(Host, TestUntilizeThrowErrorForInvalidVectorShape) {
     std::vector<bfloat16> vec(16, 0);         // Size not divisible by 1024
-    EXPECT_ANY_THROW(untilize(vec, 32, 32));  // m and n not divisible by 32
+    EXPECT_ANY_THROW(untilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
     vec = {};                                 // Cannot have a zero vector either
-    EXPECT_ANY_THROW(untilize(vec, 32, 32));  // m and n not divisible by 32
+    EXPECT_ANY_THROW(untilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
 }
 
 TEST(Host, TestUntilizeAndThenTilizeBfloat16) {
