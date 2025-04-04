@@ -265,26 +265,37 @@ operation::ProgramWithCallbacks sdpa_decode_multi_core(
     // Host code is responsible for determining matmul configuration
     const uint32_t dst_size = fp32_dest_acc_en ? 4 : 8;
     const uint32_t qk_in0_block_w = DHt;
-    // max of Sk_chunk_t and dst_size
-    const uint32_t qk_out_subblock_w = std::min(Sk_chunk_t, dst_size);
-    // If qk_out_subblock_w is full row of output, scale subblock_h so volume = dst_size. Otherwise it's 1 to maintain
-    // row-major intermediate buffer.
-    const uint32_t qk_out_subblock_h =
-        (qk_out_subblock_w == Sk_chunk_t) ? (std::min(PNHt, dst_size / qk_out_subblock_w)) : 1;
-
-    const uint32_t qk_in0_num_subblocks = PNHt / qk_out_subblock_h;
-    const uint32_t qk_in1_num_subblocks = Sk_chunk_t / qk_out_subblock_w;
     const uint32_t qk_num_blocks = DHt / qk_in0_block_w;
 
+    uint32_t qk_out_subblock_w = 0;
+    uint32_t qk_out_subblock_h = 0;
+    uint32_t qk_in0_num_subblocks = 0;
+    uint32_t qk_in1_num_subblocks = 0;
+    if (Sk_chunk_t > 0) {
+        // max of Sk_chunk_t and dst_size
+        qk_out_subblock_w = std::min(Sk_chunk_t, dst_size);
+        // If qk_out_subblock_w is full row of output, scale subblock_h so volume = dst_size. Otherwise it's 1 to
+        // maintain row-major intermediate buffer.
+        qk_out_subblock_h = (qk_out_subblock_w == Sk_chunk_t) ? (std::min(PNHt, dst_size / qk_out_subblock_w)) : 1;
+
+        qk_in0_num_subblocks = PNHt / qk_out_subblock_h;
+        qk_in1_num_subblocks = Sk_chunk_t / qk_out_subblock_w;
+    }
+
     // now for out0
-    const uint32_t out_in0_block_w = Sk_chunk_t;
+    uint32_t out_in0_block_w = 0;
+    uint32_t out_num_blocks = 0;
+    if (Sk_chunk_t > 0) {
+        out_in0_block_w = Sk_chunk_t;
+        out_num_blocks = Sk_chunk_t / out_in0_block_w;
+    }
+
     const uint32_t out_out_subblock_w = std::min(DHt, dst_size);
     const uint32_t out_out_subblock_h =
         (out_out_subblock_w == DHt) ? (std::min(PNHt, dst_size / out_out_subblock_w)) : 1;
 
     const uint32_t out_in0_num_subblocks = PNHt / out_out_subblock_h;
     const uint32_t out_in1_num_subblocks = DHt / out_out_subblock_w;
-    const uint32_t out_num_blocks = Sk_chunk_t / out_in0_block_w;
 
     // log all values
     log_debug("dst_size: {}", dst_size);

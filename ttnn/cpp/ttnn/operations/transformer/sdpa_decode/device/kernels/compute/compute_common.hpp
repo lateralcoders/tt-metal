@@ -506,22 +506,22 @@ template <
     uint32_t DHt,
     uint32_t Sq_chunk_t,
     uint32_t Sk_chunk_t,
-    uint32_t qk_chunk_tiles,
+    uint32_t qk_chunk_tiles_ct,
     uint32_t out_chunk_tiles,
     // QK matmul block parameters
     uint32_t qk_in0_block_w,
-    uint32_t qk_subblock_w,
-    uint32_t qk_subblock_h,
-    uint32_t qk_in0_num_subblocks,
-    uint32_t qk_in1_num_subblocks,
+    uint32_t qk_subblock_w_ct,
+    uint32_t qk_subblock_h_ct,
+    uint32_t qk_in0_num_subblocks_ct,
+    uint32_t qk_in1_num_subblocks_ct,
     uint32_t qk_num_blocks,
     // Output matmul block parameters
-    uint32_t out_in0_block_w,
+    uint32_t out_in0_block_w_ct,
     uint32_t out_subblock_w,
     uint32_t out_subblock_h,
     uint32_t out_in0_num_subblocks,
     uint32_t out_in1_num_subblocks,
-    uint32_t out_num_blocks,
+    uint32_t out_num_blocks_ct,
     // Attention parameters
     bool is_causal,
     bool use_attention_mask,
@@ -547,21 +547,21 @@ void flash_attention_loop(
     // Runtime parameters
     uint32_t k_chunk_start,
     uint32_t k_chunk_end,
-    uint32_t k_chunk_size,
+    uint32_t Sk_chunk_t_d,
     bool do_reduce,
     bool apply_mask_at_last_chunk  // for causal mode, optionally apply mask at the last chunk
 ) {
-    uint32_t Sk_chunk_t_d = k_chunk_size / tt::constants::TILE_HEIGHT;
-    uint32_t qk_chunk_tiles_d = 0;
+    uint32_t qk_chunk_tiles = Sq_chunk_t * Sk_chunk_t_d;
+    DPRINT << "RT args: " << Sk_chunk_t_d << ENDL();
 
-    uint32_t qk_subblock_w_d = 0;
-    uint32_t qk_subblock_h_d = 0;
-    uint32_t qk_in0_num_subblocks_d = 0;
-    uint32_t qk_in1_num_subblocks_d = 0;
+    uint32_t qk_subblock_w = Sk_chunk_t_d;
+    uint32_t qk_subblock_h = 1;  // Depends on PNHt
+    uint32_t qk_in0_num_subblocks = 1;
+    uint32_t qk_in1_num_subblocks = 1;
 
     // Output matmul block parameters
-    uint32_t out_in0_block_w_d = 0;
-    uint32_t out_num_blocks_d = 0;
+    uint32_t out_in0_block_w = Sk_chunk_t_d;
+    uint32_t out_num_blocks = 1;
 
     for (uint32_t k_chunk = k_chunk_start; k_chunk < k_chunk_end; ++k_chunk) {
         /* QK = Q_CHUNK @ K_CHUNK */

@@ -170,7 +170,7 @@ def test_llama_tg_ScaledDotProductAttentionDecode(
     mesh_device, use_program_cache, b, nh, nkv, s, d, dtype, grid_size, q_dtype, start_core, sub_core_grids
 ):
     device = mesh_device.get_device(mesh_device.get_device_ids()[0])
-    k_chunk_size = 256
+    k_chunk_size = 0
     for cur_pos in [
         127,
     ]:  # 63, 95, 127, 255, 383, 511, 1023]:
