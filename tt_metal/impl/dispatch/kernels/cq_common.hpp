@@ -384,6 +384,7 @@ template <uint16_t mesh_id, uint16_t dev_id, uint32_t routing, tt::tt_fabric::Cl
 inline void relay_cb_async_write(
     T client_interface, uint32_t header_addr, uint32_t src_addr, uint64_t dst_addr, uint32_t size) {
     if constexpr (use_fabric(routing)) {
+        tt::tt_fabric::fabric_wait_for_pull_request_flushed(client_interface);
         size += tt::tt_fabric::PACKET_HEADER_SIZE_BYTES;
         tt::tt_fabric::fabric_async_write<decltype(client_interface), data_mode>(
             client_interface, routing, src_addr, mesh_id, dev_id, dst_addr, size, 0);
@@ -403,6 +404,7 @@ template <
 inline void relay_cb_release_pages(T client_interface, uint32_t header, uint32_t n) {
     constexpr uint32_t k_WrapBoundary = 31;  // Same as NOC API
     if constexpr (use_fabric(routing)) {
+        tt::tt_fabric::fabric_wait_for_pull_request_flushed(client_interface);
         header = (uint32_t)&client_interface->header_buffer[0];  // remove
         tt::tt_fabric::fabric_atomic_inc(
             client_interface,
