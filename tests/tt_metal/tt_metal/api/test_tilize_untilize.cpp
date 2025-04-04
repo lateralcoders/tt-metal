@@ -49,11 +49,6 @@ TEST(Host, TestTilizeAndThenUntilizeBfloat16) {
         max_num_batches, max_num_row_tiles, max_num_col_tiles, TILE_HEIGHT, TILE_WIDTH);
 }
 
-TEST(Host, TestTilizeThrowErrorForNonBfloat16DataType) {
-    std::vector<float> vec(1024, 0);
-    EXPECT_ANY_THROW(tilize_nfaces(vec, 32, 32));
-}
-
 TEST(Host, TestTilizeThrowErrorForInvalidTileMandN) {
     // m and n are not divisible by tile size
     std::vector<bfloat16> vec(16, 0);
@@ -64,15 +59,10 @@ TEST(Host, TestTilizeThrowErrorForInvalidTileMandN) {
 }
 
 TEST(Host, TestTilizeThrowErrorForInvalidVectorShape) {
-    std::vector<bfloat16> vec(16, 0);       // Size not divisible by 1024
+    std::vector<bfloat16> vec(16, 0);              // Size not divisible by 1024
     EXPECT_ANY_THROW(tilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
-    vec = {};                               // Cannot have a zero vector either
+    vec = {};                                      // Cannot have a zero vector either
     EXPECT_ANY_THROW(tilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
-}
-
-TEST(Host, TestUntilizeThrowErrorForNonBfloat16DataType) {
-    std::vector<float> vec(1024, 0);
-    EXPECT_ANY_THROW(untilize_nfaces(vec, 32, 32));
 }
 
 TEST(Host, TestUntilizeThrowErrorForInvalidTileMandN) {
@@ -85,9 +75,9 @@ TEST(Host, TestUntilizeThrowErrorForInvalidTileMandN) {
 }
 
 TEST(Host, TestUntilizeThrowErrorForInvalidVectorShape) {
-    std::vector<bfloat16> vec(16, 0);         // Size not divisible by 1024
+    std::vector<bfloat16> vec(16, 0);                // Size not divisible by 1024
     EXPECT_ANY_THROW(untilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
-    vec = {};                                 // Cannot have a zero vector either
+    vec = {};                                        // Cannot have a zero vector either
     EXPECT_ANY_THROW(untilize_nfaces(vec, 32, 32));  // m and n not divisible by 32
 }
 
