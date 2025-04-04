@@ -16,11 +16,11 @@ void kernel_main() {
     uint32_t num_tiles = get_arg_val<uint32_t>(2);
 
     DPRINT << "Writer args: " << ENDL() << "dst_addr: " << dst_addr << ENDL()
-           << "input_start_tile_id: " << input_start_tile_id << ENDL() << "num_tiles: " << num_tiles << ENDL();
+           << "dst_start_tile_id: " << dst_start_tile_id << ENDL() << "num_tiles: " << num_tiles << ENDL();
 
-    constexpr uint32_t cb_id_out0 = tt::CBIndex::c_2;
+    constexpr uint32_t cb_id_out0 = get_compile_time_arg_val(0);
 
-    const uint32_t ublock_size_tiles = 1;
+    const uint32_t ublock_size_tiles = get_compile_time_arg_val(1);
 
     const InterleavedAddrGenFast<true> s = {
         .bank_base_address = dst_addr,
@@ -28,7 +28,7 @@ void kernel_main() {
         .data_format = get_dataformat(cb_id_out0),
     };
 
-    for (int i = 0; i < num_tiles; i += ublock_size_tiles) {
+    for (uint32_t i = 0; i < num_tiles; i += ublock_size_tiles) {
         uint32_t dst_tile_id = dst_start_tile_id;
 
         cb_wait_front(cb_id_out0, ublock_size_tiles);
@@ -42,4 +42,6 @@ void kernel_main() {
 
         dst_tile_id += ublock_size_tiles;
     }
+
+    DPRINT << "Writer done" << ENDL();
 }

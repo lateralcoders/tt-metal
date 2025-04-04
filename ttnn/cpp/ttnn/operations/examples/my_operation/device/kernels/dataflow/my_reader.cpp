@@ -21,10 +21,10 @@ void kernel_main() {
            << "src0_start_tile_id: " << src0_start_tile_id << ENDL() << "src1_addr: " << src1_addr << ENDL()
            << "src1_start_tile_id: " << src1_start_tile_id << ENDL() << "num_tiles: " << num_tiles << ENDL();
 
-    constexpr uint32_t cb_id_in0 = tt : tt::CBIndex::c_0;
-    constexpr uint32_t cb_id_in1 = tt::CBIndex::c_1;
+    constexpr uint32_t cb_id_in0 = get_compile_time_arg_val(0);
+    constexpr uint32_t cb_id_in1 = get_compile_time_arg_val(1);
 
-    const uint32_t ublock_size_tiles = 1;
+    const uint32_t ublock_size_tiles = get_compile_time_arg_val(2);
 
     const InterleavedAddrGenFast<true> s0 = {
         .bank_base_address = src0_addr,
@@ -40,7 +40,7 @@ void kernel_main() {
 
     for (uint32_t i = 0; i < num_tiles; i += ublock_size_tiles) {
         uint32_t src0_tile_id = src0_start_tile_id;
-        uint32_t src1_tile_id = src0_start_tile_id;
+        uint32_t src1_tile_id = src1_start_tile_id;
 
         cb_reserve_back(cb_id_in0, ublock_size_tiles);
         cb_reserve_back(cb_id_in1, ublock_size_tiles);
@@ -58,4 +58,6 @@ void kernel_main() {
         src0_tile_id += ublock_size_tiles;
         src1_tile_id += ublock_size_tiles;
     }
+
+    DPRINT << "Reader done" << ENDL();
 }
