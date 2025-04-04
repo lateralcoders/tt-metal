@@ -2476,8 +2476,7 @@ operation::ProgramWithCallbacks build_reduce_scatter_async_program(
     std::optional<size_t> num_links_preferred,
     const tt::tt_metal::GlobalSemaphore& from_remote_sem,
     const tt::tt_metal::GlobalSemaphore& to_remote_sem,
-    const std::optional<SubDeviceId>& sub_device_id,
-    std::optional<ttnn::ccl::EdmLineFabricOpInterface>& fabric_handle_) {
+    const std::optional<SubDeviceId>& sub_device_id) {
     auto program = tt::tt_metal::Program();
 
     bool persistent_fabric = true;
