@@ -39,25 +39,8 @@ def manual_group_norm(input_tensor, num_groups, eps=1e-2):
 @pytest.mark.parametrize(
     "N, C, H, W, num_groups, num_out_blocks, cores_y, cores_x",
     [
-        # (1, 2560, 1, 512, 32, 1, 8, 8), # base case
-        # (1, 2560, 1, 512, 32, 2, 8, 8), # test mcast num_out_blocks 2
-        # (1, 2560, 1, 1024, 32, 4, 8, 8), # test mcast num_out_blocks 4
-        # (1, 768, 1, 512, 32, 2, 8, 8), # test group channel count is less than tile size
-        # (2, 768, 1, 512, 32, 2, 8, 8), # test batch size 2 (still multicast)
-        # (8, 768, 1, 512, 32, 2, 8, 8), # test batch size 8 (no multicast)
-        # (8, 768, 1, 512, 32, 3, 8, 8), # test batch size 8 (no multicast), but uneven num_out_blocks divisor
-        # (9, 768, 1, 512, 32, 2, 8, 8), # test batch size 9 (uneven batch sizes)
-        # (1, 128, 1, 512, 32, 2, 4, 8), # test all groups on core fit in less than one tile, so need to reduce col core count
-        # (4, 768, 60, 106, 32, 8, 8, 4),  # Mochi VAE variant 1 (sharded, so T=1/8th the full tensor)
-        # (3, 768, 60, 106, 32, 8, 8, 3),  # Mochi VAE variant 1 (sharded, so T=1/8th the full tensor)
-        # (11, 512, 120, 212, 32, 10, 8, 8), # Mochi VAE variant 2 (sharded, so T=1/8th the full tensor)
-        # (10, 512, 120, 212, 32, 10, 8, 8), # Mochi VAE variant 2 (sharded, so T=1/8th the full tensor)
-        # (21, 256, 240, 424, 32, 40, 8, 8), # Mochi VAE variant 3 (sharded, so T=1/8th the full tensor)
-        # (20, 256, 240, 424, 32, 40, 8, 8), # Mochi VAE variant 3 (sharded, so T=1/8th the full tensor)
-        # (21, 128, 480, 848, 32, 135, 4, 8), # Mochi VAE variant 4 (sharded, so T=1/8th the full tensor)
-        # (20, 128, 480, 848, 32, 135, 4, 8), # Mochi VAE variant 4 (sharded, so T=1/8th the full tensor)
-        # (1,640,128,128,32,2,4,8),#Stable Diffusion XL Variant 1
-        (1, 960, 128, 128, 32, 2, 2, 8),  # Stable Diffusion XL Variant 2
+        (1, 2560, 1, 512, 32, 1, 8, 8),  # base case
+        (1, 960, 128, 128, 32, 2, 2, 8),
         (1, 128, 512, 512, 32, 32, 4, 8),
     ],
 )

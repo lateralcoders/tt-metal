@@ -1142,14 +1142,14 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
         num_datum_row_per_group % TILE_WIDTH == 0 ? TILE_WIDTH : num_datum_row_per_group % TILE_WIDTH;
     uint32_t group_size = W / num_groups;
     // split each batch into multiple cores
-    uint32_t num_shards_r = H / per_core_M_group_1;
-    uint32_t num_cores_per_batch = num_batches > num_shards_r ? 1 : num_shards_r / num_batches;
-    uint32_t num_shards_c = W / per_core_N;
-    uint32_t num_cores_per_group = num_groups > num_shards_c ? 1 : num_shards_c / num_groups;
+    uint32_t num_r = H / per_core_M_group_1;
+    uint32_t num_cores_per_batch = num_batches > num_r ? 1 : num_r / num_batches;
+    uint32_t num_c = W / per_core_N;
+    uint32_t num_cores_per_group = num_groups > num_c ? 1 : num_c / num_groups;
     // each core contains multiple batches
-    uint32_t num_batches_per_core_group_1 = num_batches > num_shards_r ? num_batches / num_shards_r : 1;
+    uint32_t num_batches_per_core_group_1 = num_batches > num_r ? num_batches / num_r : 1;
     uint32_t num_batches_per_core_group_2 = num_batches_per_core_group_1;  // need this to be non-zero even if unused
-    uint32_t num_groups_per_core = num_groups > num_shards_c ? num_groups / num_shards_c : 1;
+    uint32_t num_groups_per_core = num_groups > num_c ? num_groups / num_c : 1;
 
     // subblock
     uint32_t num_rows_per_batch_per_core_group_1 = per_core_M_group_1 / num_batches_per_core_group_1;
@@ -1165,7 +1165,7 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
     bool equal_batches_per_core = true;
     uint32_t last_row_with_extra_batch = 0;
     if (num_batches >= num_cores_r) {
-        last_row_with_extra_batch = (num_batches % num_shards_r);
+        last_row_with_extra_batch = (num_batches % num_r);
         equal_batches_per_core = (last_row_with_extra_batch == 0);
         if (!equal_batches_per_core) {
             last_row_with_extra_batch--;  // zero based index
@@ -1192,7 +1192,6 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
         block_ht_group_2 = per_core_Mt_group_2 / num_batches_per_core_group_2;
     }
 
-    // shard shape per core
     uint32_t per_core_N_bytes_padded = tt::round_up(per_core_N * datum_size_bytes, output.buffer()->alignment());
     bool reader_repack_output = (per_core_N % TILE_WIDTH) != 0;
     bool tilize_in = a.get_layout() == Layout::ROW_MAJOR;
@@ -1215,15 +1214,14 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
 
     TT_ASSERT(W % num_groups == 0 && "Tensor W must be divisble by num_groups");
     TT_ASSERT(W % per_core_N == 0 && "W dim must be divisible by per_core_N");
-    if (num_batches < num_shards_r) {
+    if (num_batches < num_r) {
         TT_ASSERT(H % per_core_M_group_1 == 0 && "H dim must be divisible by per_core_M");
-        TT_ASSERT(
-            num_shards_r % num_batches == 0 && "number of cores in a full column must be divisible by num_batches");
+        TT_ASSERT(num_r % num_batches == 0 && "number of cores in a full column must be divisible by num_batches");
     }
-    if (num_groups >= num_shards_c) {
-        TT_ASSERT(num_groups % num_shards_c == 0 && "num_groups must be divisible by number of cores in a full row");
+    if (num_groups >= num_c) {
+        TT_ASSERT(num_groups % num_c == 0 && "num_groups must be divisible by number of cores in a full row");
     } else {
-        TT_ASSERT(num_shards_c % num_groups == 0 && "number of cores in a full row must be divisible by num_groups");
+        TT_ASSERT(num_c % num_groups == 0 && "number of cores in a full row must be divisible by num_groups");
     }
 
     log_debug(tt::LogOp, "num_cores: {}", num_cores);
@@ -1261,40 +1259,6 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
             "per_core_M height must be div by per_core_batch");
     }
     TT_ASSERT(W % num_groups == 0 && "tensor width must be divisible by num_groups!");
-    // if (shard_orientation == ShardOrientation::ROW_MAJOR and num_groups_per_core == 1) {
-    //     TT_FATAL(false, "VASH TODO");
-    // 	TT_ASSERT(
-    //         num_cores_c % num_groups == 0 &&
-    //         "for RM shard, when each group is split across cores, num_cores_c must be divisible by num_groups!");
-    // } else if (shard_orientation == ShardOrientation::COL_MAJOR and num_groups_per_core == 1) {
-    //     TT_FATAL(false, "VASH TODO");
-    //     TT_ASSERT(
-    //         num_cores_r % num_groups == 0 &&
-    //         "for CM shard, when each group is split across cores, num_cores_r must be divisible by num_groups!");
-    // }
-
-    // if (per_core_N != W) {  // block sharded
-    //     TT_FATAL(false, "VASH TODO");
-    //     if (shard_orientation == ShardOrientation::ROW_MAJOR and num_batches_per_core == 1) {
-    //         TT_ASSERT(
-    //             num_cores_r % num_batches == 0 &&
-    //             "for RM shard, when each batch is split across cores, num_cores_r must be divisible by
-    //             num_batches!");
-    //     } else if (shard_orientation == ShardOrientation::COL_MAJOR and num_groups_per_core == 1) {
-    //         TT_ASSERT(
-    //             num_cores_c % num_batches == 0 &&
-    //             "for CM shard, when each batch is split across cores, num_cores_c must be divisible by
-    //             num_batches!");
-    //     }
-    // } else {  // height sharded
-    //     TT_FATAL(false, "VASH TODO");
-    //     if (num_batches_per_core == 1) {
-    //         TT_ASSERT(
-    //             (num_cores_c * num_cores_r) % num_batches == 0 &&
-    //             "for height shard, number of cores must be divisible by num_batches!");
-    //     }
-    // }
-
     if (input_mask.has_value()) {
         TT_ASSERT(
             input_mask.value().get_padded_shape()[3] == block_wt * TILE_WIDTH &&
@@ -1381,53 +1345,6 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
         out_CB_size_group_1 = in0_block_tiles_group_1 * out_single_tile_size;
         out_CB_size_group_2 = in0_block_tiles_group_2 * out_single_tile_size;
     }
-
-    // Do CB size check with group_2 since it's larger
-    // if (equal_batches_per_core) {
-    //     TT_FATAL(
-    //         cbs_fit_in_DRAM(
-    //             in0_CB_size_group_1,
-    //             in_CB_size_group_1,
-    //             in2_CB_size,
-    //             in3_CB_size,
-    //             in5_CB_size,
-    //             in6_CB_size,
-    //             in_mask_CB_size,
-    //             repack_CB_size,
-    //             x_CB_size_group_1,
-    //             xmm_CB_size_group_1,
-    //             ex_partial_CB_size,
-    //             ex_global_CB_size,
-    //             ex2_global_CB_size,
-    //             xmm2_CB_size_group_1,
-    //             xmm3_CB_size_group_1,
-    //             ex2pe_CB_size,
-    //             out_CB_size_group_1,
-    //             a.device()->l1_size_per_core()),
-    //         "Circular buffers require too much space to fit into L1");
-    // } else {
-    //     TT_FATAL(
-    //         cbs_fit_in_DRAM(
-    //             in0_CB_size_group_2,
-    //             in_CB_size_group_2,
-    //             in2_CB_size,
-    //             in3_CB_size,
-    //             in5_CB_size,
-    //             in6_CB_size,
-    //             in_mask_CB_size,
-    //             repack_CB_size,
-    //             x_CB_size_group_2,
-    //             xmm_CB_size_group_2,
-    //             ex_partial_CB_size,
-    //             ex_global_CB_size,
-    //             ex2_global_CB_size,
-    //             xmm2_CB_size_group_2,
-    //             xmm3_CB_size_group_2,
-    //             ex2pe_CB_size,
-    //             out_CB_size_group_2,
-    //             a.device()->l1_size_per_core()),
-    //         "Circular buffers require too much space to fit into L1");
-    // }
 
     log_debug(tt::LogOp, "per_core_Nt: {}", per_core_Nt);
     log_debug(tt::LogOp, "per_core_Mt_group_1: {}", per_core_Mt_group_1);
@@ -2199,6 +2116,8 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
 
     // Runtime Args
     std::vector<KernelHandle> writer_kernel_ids;
+    std::vector<KernelHandle> reader_sender_kernel_ids;
+    std::vector<KernelHandle> reader_receiver_kernel_ids;
     float winv_group_1 =
         1.0f / std::sqrt(num_rows_per_batch_per_core_group_1 * num_datum_row_per_group);  // bcast-w scaler
     bfloat16 bfloat_winv_value_group_1 = bfloat16(winv_group_1);
@@ -2349,9 +2268,11 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
                 if (equal_batches_per_core || (core.x <= last_row_with_extra_batch)) {
                     tt::tt_metal::SetRuntimeArgs(
                         program, reader_mcast_sender_kernels_id_group_1, core, mcast_sender_args);
+                    reader_sender_kernel_ids.push_back(reader_mcast_sender_kernels_id_group_1);
                 } else {
                     tt::tt_metal::SetRuntimeArgs(
                         program, reader_mcast_sender_kernels_id_group_2, core, mcast_sender_args);
+                    reader_sender_kernel_ids.push_back(reader_mcast_sender_kernels_id_group_2);
                 }
             } else {  // mcast receiver
                 log_debug(tt::LogOp, "mcast receiver receive from coord: {} {}", group.front().x, group.front().y);
@@ -2367,9 +2288,11 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
                 if (equal_batches_per_core || (core.x <= last_row_with_extra_batch)) {
                     tt::tt_metal::SetRuntimeArgs(
                         program, reader_mcast_receiver_kernels_id_group_1, core, mcast_receiver_args);
+                    reader_receiver_kernel_ids.push_back(reader_mcast_receiver_kernels_id_group_1);
                 } else {
                     tt::tt_metal::SetRuntimeArgs(
                         program, reader_mcast_receiver_kernels_id_group_2, core, mcast_receiver_args);
+                    reader_receiver_kernel_ids.push_back(reader_mcast_receiver_kernels_id_group_2);
                 }
             }
         }
@@ -2428,41 +2351,60 @@ operation::ProgramWithCallbacks groupnorm_multi_core(
                 (input_mask_tile_start_id + input_mask_num_tiles_per_core) % (input_mask.value().volume() / TILE_HW);
         }
     }
+    auto override_runtime_args_callback =
+        [writer_kernel_ids, reader_sender_kernel_ids, reader_receiver_kernel_ids, num_cores, grid_size, mcast_groups](
+            const void* operation,
+            Program& program,
+            const std::vector<Tensor>& input_tensors,
+            const std::vector<std::optional<const Tensor>>& optional_input_tensors,
+            const std::vector<Tensor>& output_tensors) {
+            auto src_buffer_a = input_tensors.at(0).buffer()->address();
+            auto gamma_tensor = optional_input_tensors.at(0);
+            auto beta_tensor = optional_input_tensors.at(1);
+            auto mask_tensor = optional_input_tensors.at(2);
+            auto dst_buffer = output_tensors.at(0).buffer()->address();
 
-    auto override_runtime_args_callback = [writer_kernel_ids, num_cores, grid_size](
-                                              const void* operation,
-                                              Program& program,
-                                              const std::vector<Tensor>& input_tensors,
-                                              const std::vector<std::optional<const Tensor>>& optional_input_tensors,
-                                              const std::vector<Tensor>& output_tensors) {
-        // auto src_buffer_a = input_tensors.at(0).buffer();
-        auto gamma_tensor = optional_input_tensors.at(0);
-        auto beta_tensor = optional_input_tensors.at(1);
-        auto mask_tensor = optional_input_tensors.at(2);
-        // auto dst_buffer = output_tensors.at(0).buffer();
+            // updatedynamiccircularbufferaddress(program, cb_in0, *src_buffer_a);
+            // updatedynamiccircularbufferaddress(program, cb_output, *dst_buffer);
+            for (uint32_t i = 0; i < num_cores; ++i) {
+                CoreCoord core = {i % grid_size.x, i / grid_size.x};
 
-        // UpdateDynamicCircularBufferAddress(program, cb_in0, *src_buffer_a);
-        // UpdateDynamicCircularBufferAddress(program, cb_output, *dst_buffer);
+                auto writer_kernel_id = writer_kernel_ids.at(i);
+                auto& writer_runtime_args = GetRuntimeArgs(program, writer_kernel_id, core);
 
-        for (uint32_t i = 0; i < num_cores; ++i) {
-            CoreCoord core = {i % grid_size.x, i / grid_size.x};
-
-            auto writer_kernel_id = writer_kernel_ids.at(i);
-
-            auto& runtime_args = GetRuntimeArgs(program, writer_kernel_id, core);
-
-            if (gamma_tensor.has_value()) {
-                runtime_args[4] = gamma_tensor.value().buffer()->address();
+                writer_runtime_args[3] = dst_buffer;
+                if (gamma_tensor.has_value()) {
+                    writer_runtime_args[4] = gamma_tensor.value().buffer()->address();
+                }
+                if (beta_tensor.has_value()) {
+                    writer_runtime_args[5] = beta_tensor.value().buffer()->address();
+                }
+                if (mask_tensor.has_value()) {
+                    writer_runtime_args[6] = mask_tensor.value().buffer()->address();
+                }
             }
-            if (beta_tensor.has_value()) {
-                runtime_args[5] = beta_tensor.value().buffer()->address();
+            uint32_t sender_index = 0;
+            uint32_t receiver_index = 0;
+            for (int i = 0; i < mcast_groups.size(); ++i) {
+                auto group = mcast_groups[i];
+                for (int j = 0; j < group.size(); ++j) {
+                    CoreCoord core = group[j];
+                    if (j == 0) {
+                        auto reader_sender_kernel_id = reader_sender_kernel_ids.at(sender_index);
+                        auto& reader_sender_runtime_args = GetRuntimeArgs(program, reader_sender_kernel_id, core);
+                        reader_sender_runtime_args[0] = src_buffer_a;
+                        reader_sender_runtime_args[1] = dst_buffer;
+                        sender_index++;
+                    } else {
+                        auto reader_receiver_kernel_id = reader_receiver_kernel_ids.at(receiver_index);
+                        auto& reader_receiver_runtime_args = GetRuntimeArgs(program, reader_receiver_kernel_id, core);
+                        reader_receiver_runtime_args[0] = src_buffer_a;
+                        reader_receiver_runtime_args[1] = dst_buffer;
+                        receiver_index++;
+                    }
+                }
             }
-            if (mask_tensor.has_value()) {
-                runtime_args[6] = mask_tensor.value().buffer()->address();
-            }
-        }
-    };
-
+        };
     return {.program = std::move(program), .override_runtime_arguments_callback = override_runtime_args_callback};
 }
 
