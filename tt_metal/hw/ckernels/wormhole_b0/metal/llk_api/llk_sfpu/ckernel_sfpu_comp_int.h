@@ -35,10 +35,6 @@ inline void calculate_unary_ne_int32(int scalar) {
         vInt val = 0;
         v_if(v != scalar) { val = 1; }
         v_endif;
-        v_if(v == -2) { val = 7; }
-        v_endif;
-        // v_if(v < -5) { val = 8; }
-        // v_endif;
         dst_reg[0] = val;
         dst_reg++;
     }
