@@ -4,6 +4,7 @@
 
 #pragma once
 #include <cstdint>
+#include <cstddef>
 
 /*
  * This file contains values that are visible to both host and device compiled code.
