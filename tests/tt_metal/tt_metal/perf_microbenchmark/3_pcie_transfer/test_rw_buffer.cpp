@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fmt/base.h>
 #include <stdint.h>
+#include <cstdlib>
 #include <tt-metalium/bfloat16.hpp>
 #include <tt-metalium/host_api.hpp>
 #include <algorithm>
@@ -23,10 +24,12 @@
 #include <tt-metalium/buffer.hpp>
 #include <tt-metalium/buffer_constants.hpp>
 #include <tt-metalium/device.hpp>
+#include "fabric_types.hpp"
 #include "fmt/base.h"
 #include <tt-metalium/logger.hpp>
 #include "test_common.hpp"
 #include "tt_cluster.hpp"
+#include "tt_metal.hpp"
 #include "tt_metal/tt_metal/perf_microbenchmark/common/util.hpp"
 
 using namespace tt;
@@ -61,6 +64,10 @@ int main(int argc, char** argv) {
     uint32_t transfer_size;
     uint32_t page_size;
     uint32_t device_id = 0;
+
+    if (std::getenv("TT_METAL_FD_FABRIC")) {
+        tt::tt_metal::detail::InitializeFabricConfig(FabricConfig::FABRIC_2D);
+    }
 
     try {
         // Input arguments parsing
@@ -121,8 +128,9 @@ int main(int argc, char** argv) {
         auto buffer = tt_metal::Buffer::create(
             device, transfer_size, page_size, buffer_type == 0 ? tt_metal::BufferType::DRAM : tt_metal::BufferType::L1);
 
-        std::vector<uint32_t> src_vec = create_random_vector_of_bfloat16(
-            transfer_size, 1000, std::chrono::system_clock::now().time_since_epoch().count());
+        std::vector<uint32_t> src_vec(transfer_size / sizeof(uint32_t), 0xdeadbeef);
+        //  = create_random_vector_of_bfloat16(transfer_size, 1000,
+        //  std::chrono::system_clock::now().time_since_epoch().count());
         std::vector<uint32_t> result_vec;
 
         log_info(

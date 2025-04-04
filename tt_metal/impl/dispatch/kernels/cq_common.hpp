@@ -388,6 +388,7 @@ inline void relay_cb_async_write(
         size += tt::tt_fabric::PACKET_HEADER_SIZE_BYTES;
         tt::tt_fabric::fabric_async_write<decltype(client_interface), data_mode>(
             client_interface, routing, src_addr, mesh_id, dev_id, dst_addr, size, 0);
+        tt::tt_fabric::fabric_wait_for_pull_request_flushed(client_interface);
     } else {
         noc_async_write(src_addr, dst_addr, size);
     }
@@ -415,6 +416,7 @@ inline void relay_cb_release_pages(T client_interface, uint32_t header, uint32_t
             get_noc_addr_helper(noc_xy, get_semaphore<fd_core_type>(sem_id)),
             n,
             k_WrapBoundary);
+        tt::tt_fabric::fabric_wait_for_pull_request_flushed(client_interface);
     } else {
         cb_release_pages<noc_idx, noc_xy, sem_id>(n);
     }

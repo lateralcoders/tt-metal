@@ -124,7 +124,7 @@ inline uint32_t get_fabric_header() {
 inline volatile tt::tt_fabric::fabric_pull_client_interface_t* get_fabric_interface() {
     constexpr uint32_t rb_mask = client_interface_rb_entries - 1;
     uint32_t addr = client_interface_addr + ((fabric_client_interface_rb_index & rb_mask) * client_interface_size);
-    fabric_client_interface_rb_index = fabric_client_interface_rb_index + 1;
+    // fabric_client_interface_rb_index = fabric_client_interface_rb_index + 1;
     return reinterpret_cast<volatile tt::tt_fabric::fabric_pull_client_interface_t*>(addr);
 }
 
