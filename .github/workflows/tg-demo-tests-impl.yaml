@@ -71,7 +71,7 @@ jobs:
         uses: ./.github/actions/upload-data-via-sftp
         with:
           ssh-private-key: ${{ secrets.SFTP_BENCHMARK_WRITER_KEY }}
-          sftp-batchfile: .github/actions/upload-data-via-sftp/benchmark_data_batchfile.txt
+          sftp-batchfile: .github/actions/upload-data-via-sftp/benchmark_data_batchfile_work_container.txt  # TG demos runs inside a container so the generated files are located under /work
           username: ${{ secrets.SFTP_BENCHMARK_WRITER_USERNAME }}
           hostname: ${{ secrets.SFTP_BENCHMARK_WRITER_HOSTNAME }}
       - uses: tenstorrent/tt-metal/.github/actions/upload-artifact-with-job-uuid@main
