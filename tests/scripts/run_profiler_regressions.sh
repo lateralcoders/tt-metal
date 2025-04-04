@@ -44,17 +44,17 @@ run_resnet50_2cqs_tracing_T3000_test() {
             LINE_COUNT=4100 # Smoke test to see at least 4100 ops are reported
             res=$(verify_perf_line_count_floor "$PROFILER_OUTPUT_DIR/$runDate/ops_perf_results_$runDate.csv" "$LINE_COUNT")
             echo $res
-        fi
 
-        #Testing device only report on the same artifacts
-        rm -rf $PROFILER_OUTPUT_DIR/
-        ./tt_metal/tools/profiler/process_ops_logs.py --device-only --date
-        echo "Verifying device-only results"
-        runDate=$(ls $PROFILER_OUTPUT_DIR/)
-        echo $runDate
-        LINE_COUNT=3600 # Smoke test to see at least 4100 ops are reported
-        res=$(verify_perf_line_count_floor "$PROFILER_OUTPUT_DIR/$runDate/ops_perf_results_$runDate.csv" "$LINE_COUNT")
-        echo $res
+            # Testing device only report on the same artifacts
+            rm -rf $PROFILER_OUTPUT_DIR/
+            ./tt_metal/tools/profiler/process_ops_logs.py --device-only --date
+            echo "Verifying device-only results"
+            runDate=$(ls $PROFILER_OUTPUT_DIR/)
+            echo $runDate
+            LINE_COUNT=3600 # Smoke test to see at least 3600 ops are reported
+            res=$(verify_perf_line_count_floor "$PROFILER_OUTPUT_DIR/$runDate/ops_perf_results_$runDate.csv" "$LINE_COUNT")
+            echo $res
+        fi
     fi
 }
 
