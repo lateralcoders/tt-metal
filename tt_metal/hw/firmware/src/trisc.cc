@@ -4,6 +4,7 @@
 
 // clang-format off
 #include "ckernel.h"
+#include "ckernel_debug.h"
 #include "firmware_common.h"
 #include "risc_common.h"
 #include <tensix.h>
@@ -56,6 +57,9 @@ const uint8_t thread_id = COMPILE_FOR_TRISC;
 volatile tt_l1_ptr uint8_t *const trisc_run =
     &GET_TRISC_RUN(((tt_l1_ptr mailboxes_t *)(MEM_MAILBOX_BASE))->slave_sync.trisc, COMPILE_FOR_TRISC);
 tt_l1_ptr mailboxes_t *const mailboxes = (tt_l1_ptr mailboxes_t *)(MEM_MAILBOX_BASE);
+
+volatile uint32_t tt_l1_ptr* dprint_buffer = (uint32_t*)&(mailboxes->dprint_buf);
+volatile uint32_t dump_counter __attribute__((used)) = 1;
 }  // namespace ckernel
 
 #if !defined(UCK_CHLKC_MATH)
@@ -100,6 +104,8 @@ int main(int argc, char *argv[]) {
 
     reset_cfg_state_id();
 
+    dbg_init_runtime_dump();
+
     // Cleanup profiler buffer incase we never get the go message
     while (1) {
         WAYPOINT("W");
@@ -138,6 +144,13 @@ int main(int argc, char *argv[]) {
                                   launch_msg->kernel_config.rta_offset[DISPATCH_CLASS_TENSIX_COMPUTE].crta_offset);
 
         WAYPOINT("R");
+        for (uint32_t i = 1; i < 8; i++) {
+            dbg_write_runtime_dump(i, semaphore_read(i));
+        }
+        dbg_write_runtime_dump(8, dbg_read_debug_bus(DEBUG_BUS_TRISC0_PC));
+        dbg_write_runtime_dump(9, dbg_read_debug_bus(DEBUG_BUS_TRISC1_PC));
+        dbg_write_runtime_dump(10, dbg_read_debug_bus(DEBUG_BUS_TRISC2_PC));
+        dbg_close_runtime_dump(1);
         int index = static_cast<std::underlying_type<TensixProcessorTypes>::type>(TensixProcessorTypes::MATH0) + thread_id;
         void (*kernel_address)(uint32_t) = (void (*)(uint32_t))
             (kernel_config_base + launch_msg->kernel_config.kernel_text_offset[index]);
