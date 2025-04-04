@@ -116,6 +116,9 @@ void MAIN {
             return;
         }
     }
+
+    auto Sk_chunk_t_d = get_dynamic_Sk_chunk_t<Sk_chunk_t>(cur_pos);
+
     // Sequence length assignment
     auto [PSt, k_num_chunks, k_chunk_start, k_chunk_end] =
         get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size);
@@ -174,16 +177,16 @@ void MAIN {
             cb_exp_max_diff,
             cb_out_o,
             cb_out_m,
-            cb_out_l>(k_chunk_start, k_chunk_end, do_reduce, apply_mask_at_last_chunk);
+            cb_out_l>(k_chunk_start, k_chunk_end, Sk_chunk_t_d, do_reduce, apply_mask_at_last_chunk);
 
         // do reduction across intermediates from other cores if this is the reduction core
         if (do_reduce) {
-            DPRINT << "12" << ENDL();
+            // DPRINT << "12" << ENDL();
             // cb_out_accumulate_im should contain o_1
             // cb_prev_max and cb_prev_sum should contain m_1 and l_1
 
             if (k_chunk_end - k_chunk_start < k_num_chunks) {
-                DPRINT << "13" << ENDL();
+                // DPRINT << "13" << ENDL();
                 // This indicates that there are computes done by other workers. Needs to wait for them and send to
                 // reducer's compute
                 for (uint32_t i = 0; i < num_cores_to_wait; i++) {
@@ -232,23 +235,23 @@ void MAIN {
                     copy_block(cb_cur_max, cb_prev_max, Sq_chunk_t);
                     copy_block(cb_cur_sum, cb_prev_sum, Sq_chunk_t);
                 }
-                DPRINT << "13" << ENDL();
+                // DPRINT << "13" << ENDL();
             }
 
             /* cb_cur_sum = 1.0 / cb_cur_sum */
             cb_push_back(cb_cur_sum, Sq_chunk_t);
 
-            DPRINT << "14" << ENDL();
+            // DPRINT << "14" << ENDL();
             reconfig_data_format(cb_cur_sum, cb_cur_sum);  // DEBUG
             pack_reconfig_data_format(cb_cur_sum);
             recip_block_inplace(cb_cur_sum, Sq_chunk_t);
 
-            DPRINT << "15" << ENDL();
+            // DPRINT << "15" << ENDL();
             /* cb_out_accumulate_im *= cb_cur_sum */
             reconfig_data_format(cb_out_accumulate_im, cb_cur_sum);  // DEBUG
             pack_reconfig_data_format(cb_out_accumulate_im);
             mul_block_bcast_cols_inplace(cb_out_accumulate_im, cb_cur_sum, Sq_chunk_t, DHt);
-            DPRINT << "16" << ENDL();
+            // DPRINT << "16" << ENDL();
             pack_reconfig_data_format(cb_out_final);
             copy_block(cb_out_accumulate_im, cb_out_final, out_chunk_tiles);
 
@@ -258,6 +261,6 @@ void MAIN {
         }
     }
     cb_pop_front(cb_q_in, q_chunk_tiles);
-    DPRINT << "DONE C" << ENDL();
+    // DPRINT << "DONE C" << ENDL();
 }
 }  // namespace NAMESPACE

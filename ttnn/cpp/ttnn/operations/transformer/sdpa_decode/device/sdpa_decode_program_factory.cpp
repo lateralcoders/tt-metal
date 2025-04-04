@@ -70,7 +70,9 @@ operation::ProgramWithCallbacks sdpa_decode_multi_core(
     uint32_t St = S / TILE_HEIGHT;
     uint32_t DHt = DH / TILE_WIDTH;
     uint32_t PNHt = PNH / TILE_HEIGHT;
-    uint32_t Sk_chunk_t = k_chunk_size / TILE_HEIGHT;
+
+    const uint32_t Sk_chunk_t = k_chunk_size / TILE_HEIGHT;
+
     bool is_q_sharded = input_tensor_q.is_sharded();
     bool is_output_sharded = output_tensor.is_sharded();
     if (!share_cache.has_value()) {
@@ -237,10 +239,15 @@ operation::ProgramWithCallbacks sdpa_decode_multi_core(
     log_debug("core_group_idle: {}", core_group_idle);
 
     // These tile capacity counts for CBs need to match the number of tiles expected by the kernel (softmax.cpp)
+
+    // If k_chunk_t, set it to some max number of tiles that kernels will also respect
+    constexpr uint32_t max_k_chunk_size = 8;
+    const uint32_t Sk_chunk_t_cb_size = Sk_chunk_t == 0 ? max_k_chunk_size : Sk_chunk_t;
+
     uint32_t q_tiles = PNHt * DHt;
-    uint32_t k_tiles = Sk_chunk_t * DHt * 2;  // double buffer
-    uint32_t v_tiles = Sk_chunk_t * DHt * 2;  // double buffer
-    uint32_t qk_tiles = PNHt * Sk_chunk_t;
+    uint32_t k_tiles = Sk_chunk_t_cb_size * DHt * 2;  // double buffer
+    uint32_t v_tiles = Sk_chunk_t_cb_size * DHt * 2;  // double buffer
+    uint32_t qk_tiles = PNHt * Sk_chunk_t_cb_size;
     uint32_t out_im_tiles = PNHt * DHt;
     uint32_t out0_t = PNHt * DHt;
     uint32_t scale_tiles = 1;

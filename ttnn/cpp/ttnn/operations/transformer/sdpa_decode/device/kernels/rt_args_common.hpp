@@ -34,3 +34,42 @@ inline std::tuple<uint32_t, uint32_t, uint32_t, uint32_t> get_runtime_args(
     }
     return {pst_value, num_chunks_value, k_chunk_start, k_chunk_end};
 }
+
+template <uint32_t Sk_chunk_t>
+inline uint32_t get_dynamic_Sk_chunk_t(int cur_pos) {
+    if constexpr (Sk_chunk_t == 0) {
+        // Cur_pos + 1 for position, but -1 for divup, so cancels out
+        return (cur_pos / tt::constants::TILE_HEIGHT + 1);
+    }
+    return Sk_chunk_t;
+}
+
+inline std::tuple<uint32_t, uint32_t, uint32_t, uint32_t> get_compute_runtime_args(
+    int cur_pos, int cur_batch, int core_num, int num_cores_per_batch, uint32_t k_chunk_size) {
+    uint32_t valid_seq_len = nearest_n(cur_pos + 1, k_chunk_size);
+    uint32_t pst_value = valid_seq_len / tt::constants::TILE_HEIGHT;
+    uint32_t num_chunks_value = valid_seq_len / k_chunk_size;
+
+    uint32_t k_chunk_start = 0;
+    uint32_t k_chunk_end = 0;
+
+    if (num_cores_per_batch > int(num_chunks_value)) {
+        int chunks_per_core = 1;
+        if (core_num >= int(num_chunks_value)) {
+            chunks_per_core = 0;
+        }
+        k_chunk_start = (num_chunks_value - core_num - 1) * chunks_per_core;
+        k_chunk_end = (num_chunks_value - core_num) * chunks_per_core;
+        DPRINT << "RT arg: " << k_chunk_start << ", " << k_chunk_end << ENDL();
+    } else {
+        int chunks_per_core = num_chunks_value / num_cores_per_batch;
+        int residuals = num_chunks_value % num_cores_per_batch;
+        int reversed_core_num = num_cores_per_batch - core_num - 1;
+        k_chunk_start = reversed_core_num * chunks_per_core + std::min(residuals, reversed_core_num);
+        k_chunk_end = k_chunk_start + chunks_per_core;
+        if (reversed_core_num < residuals) {
+            k_chunk_end += 1;
+        }
+    }
+    return {pst_value, num_chunks_value, k_chunk_start, k_chunk_end};
+}

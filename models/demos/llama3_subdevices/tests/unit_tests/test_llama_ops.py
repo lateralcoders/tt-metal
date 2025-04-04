@@ -170,25 +170,29 @@ def test_llama_tg_ScaledDotProductAttentionDecode(
     mesh_device, use_program_cache, b, nh, nkv, s, d, dtype, grid_size, q_dtype, start_core, sub_core_grids
 ):
     device = mesh_device.get_device(mesh_device.get_device_ids()[0])
-    run_test_sdpa_decode_paged_attention_single_iter(
-        device,
-        b,
-        nh,
-        nkv,
-        s,
-        d,
-        dtype,
-        grid_size,
-        q_dtype,
-        cur_pos=127,
-        block_size=32,
-        q_chunk_size=256,
-        k_chunk_size=256,
-        sharded_in=True,
-        sharded_out=True,
-        start_core=start_core,
-        sub_core_grids=sub_core_grids,
-    )
+    k_chunk_size = 256
+    for cur_pos in [
+        127,
+    ]:  # 63, 95, 127, 255, 383, 511, 1023]:
+        run_test_sdpa_decode_paged_attention_single_iter(
+            device,
+            b,
+            nh,
+            nkv,
+            s,
+            d,
+            dtype,
+            grid_size,
+            q_dtype,
+            cur_pos=cur_pos,
+            block_size=32,
+            q_chunk_size=k_chunk_size,
+            k_chunk_size=k_chunk_size,
+            sharded_in=True,
+            sharded_out=True,
+            start_core=start_core,
+            sub_core_grids=sub_core_grids,
+        )
     assert device.num_program_cache_entries() == 1
 
 
