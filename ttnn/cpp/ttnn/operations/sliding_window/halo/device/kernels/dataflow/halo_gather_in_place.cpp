@@ -7,7 +7,7 @@
 
 #include "dataflow_api.h"
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 
 #if ENABLE_DEBUG
 #include "debug/dprint_pages.h"
@@ -212,7 +212,11 @@ void kernel_main() {
     const uint32_t in_base_l1_addr = get_read_ptr(in_cb_id);
     const uint32_t out_base_l1_addr = get_write_ptr(out_cb_id);
 
-    // input shards
+    // if constexpr (local_config_cb_id) {
+    //     tt::data_movement::common::print_bf16_pages(
+    //         in_base_l1_addr, 512, 64);
+    // }
+
     if constexpr (local_config_cb_id) {
         cb_reserve_back(src_cb_id, in_nsticks);
         cb_push_back(src_cb_id, in_nsticks);
