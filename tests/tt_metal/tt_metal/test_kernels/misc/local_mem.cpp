@@ -44,6 +44,8 @@ void MAIN {
     zero[2] = 0xdeadbeef;
     zero[3] = 0xdeadbeef;
 
+    ASSERT(0);
+
     if (global_eight_byte_val != 0xABCD0123ABCD0123) {
         ASSERT(0);
         while (1);
