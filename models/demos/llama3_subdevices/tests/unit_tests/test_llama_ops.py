@@ -172,7 +172,7 @@ def test_llama_tg_ScaledDotProductAttentionDecode(
     device = mesh_device.get_device(mesh_device.get_device_ids()[0])
     k_chunk_size = 0
     for cur_pos in [
-        255,
+        256,
     ]:  # 63, 95, 127, 255, 383, 511, 1023]:
         run_test_sdpa_decode_paged_attention_single_iter(
             device,

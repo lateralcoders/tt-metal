@@ -132,14 +132,14 @@ void sub_exp_block_bcast_cols_inplace(uint32_t in0_cb, uint32_t in1_cb, uint32_t
     exp_tile_init<true>();
     cb_wait_front(in0_cb, rows * cols);
     cb_wait_front(in1_cb, rows);
-    DPRINT << "cols: " << cols << ENDL();
 
-#ifdef MUL_BCAST_GRANULARITY
+#ifdef SUB_EXP_GRANULARITY
     constexpr uint32_t dst_tiles = SUB_EXP_GRANULARITY;
-    uint32_t granularity = cols >> LOG2_MUL_BCAST_GRANULARITY;
+    uint32_t granularity = cols >> LOG2_SUB_EXP_GRANULARITY;
 #else
-    constexpr uint32_t dst_tiles = cols;
+    uint32_t dst_tiles = cols;
     uint32_t granularity = 1;
+    DPRINT << "sub: " << dst_tiles << ", " << granularity << ENDL();
 #endif
     for (uint32_t i = 0; i < rows; ++i) {
         for (uint32_t u = 0; u < granularity; u++) {
@@ -199,7 +199,7 @@ void mul_block_bcast_scalar_inplace(uint32_t in0_cb, uint32_t in1_scalar_cb, uin
     constexpr uint32_t dst_tiles = MUL_BCAST_GRANULARITY;
     uint32_t granularity = num_tiles >> LOG2_MUL_BCAST_GRANULARITY;
 #else
-    constexpr uint32_t dst_tiles = num_tiles;
+    uint32_t dst_tiles = num_tiles;
     uint32_t granularity = 1;
 #endif
 
@@ -229,13 +229,18 @@ void add_block_inplace(uint32_t in0_cb, uint32_t in1_cb, uint32_t num_tiles) {
     // Postcondition: in1_cb has num_tiles consumed
 
     add_tiles_init(in0_cb, in1_cb);
+    DPRINT << "3a: " << num_tiles << ENDL();
     cb_wait_front(in0_cb, num_tiles);
+    DPRINT << "3b" << ENDL();
     cb_wait_front(in1_cb, num_tiles);
+    DPRINT << "3c" << ENDL();
     for (uint32_t i = 0; i < num_tiles; i++) {
         acquire_dst();
         add_tiles(in0_cb, in1_cb, 0, i, 0);
+        DPRINT << "3d1: " << i << ENDL();
         cb_pop_front(in0_cb, 1);
         cb_reserve_back(in0_cb, 1);
+        DPRINT << "3d2: " << i << ENDL();
         pack_tile(0, in0_cb);
         cb_push_back(in0_cb, 1);
         release_dst();

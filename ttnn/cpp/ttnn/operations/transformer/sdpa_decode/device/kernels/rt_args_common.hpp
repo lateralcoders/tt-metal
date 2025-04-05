@@ -38,6 +38,10 @@ inline std::tuple<uint32_t, uint32_t, uint32_t, uint32_t> get_runtime_args(
 template <uint32_t Sk_chunk_t>
 inline uint32_t get_dynamic_Sk_chunk_t(int cur_pos) {
     if constexpr (Sk_chunk_t == 0) {
+        constexpr int max_pos = 256;
+        if (cur_pos + 1 >= max_pos) {
+            return max_pos / tt::constants::TILE_HEIGHT;
+        }
         // Cur_pos + 1 for position, but -1 for divup, so cancels out
         return (cur_pos / tt::constants::TILE_HEIGHT + 1);
     }

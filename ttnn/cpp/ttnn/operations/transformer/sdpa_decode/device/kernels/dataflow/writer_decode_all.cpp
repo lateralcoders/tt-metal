@@ -15,7 +15,7 @@ void kernel_main() {
     constexpr uint32_t PNHt = get_compile_time_arg_val(1);  // padded number of heads in tiles
     constexpr uint32_t St = get_compile_time_arg_val(2);    // full sequence length of kv cache in tiles
     constexpr uint32_t DHt = get_compile_time_arg_val(3);   // head dim
-    constexpr uint32_t Sk_chunk_t = get_compile_time_arg_val(4);  // number of tiles in seqlen of a k/v/mask chunk
+    constexpr uint32_t Sk_chunk_t_ct = get_compile_time_arg_val(4);  // number of tiles in seqlen of a k/v/mask chunk
     constexpr uint32_t identity_scalar_packed = get_compile_time_arg_val(5);
     constexpr uint32_t scale_val = get_compile_time_arg_val(6);
     constexpr uint32_t num_cores_per_batch = get_compile_time_arg_val(7);          // num cores per batch
@@ -70,15 +70,17 @@ void kernel_main() {
             return;
         }
     }
+
+    auto Sk_chunk_t = get_dynamic_Sk_chunk_t<Sk_chunk_t_ct>(cur_pos);
+    auto k_chunk_size_d = Sk_chunk_t * tt::constants::TILE_HEIGHT;
+
     // Sequence length assignment
     auto [PSt, k_num_chunks, k_chunk_start, k_chunk_end] =
-        get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size);
+        get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size_d);
 
     if (k_chunk_start == k_chunk_end) {
         return;  // early exit because no computes needs to be done
     }
-
-    auto Sk_chunk_t_d = get_dynamic_Sk_chunk_t<Sk_chunk_t>(cur_pos);
 
     tt_l1_ptr uint32_t* all_reducer_noc_x = (tt_l1_ptr uint32_t*)(get_arg_addr(arg_idx));
     arg_idx += num_reducer_cores;
@@ -129,6 +131,7 @@ void kernel_main() {
         return;
     }
 
+    DPRINT << "WRITER 1" << ENDL();
     // *** Reducer Compute Below ***
     constexpr uint32_t tile_bytes = get_tile_size(cb_out);
     constexpr uint32_t tile_bytes_intermed = get_tile_size(cb_intermed_out);
@@ -148,6 +151,7 @@ void kernel_main() {
     // generate and send mask to compute if causal
     if constexpr (is_causal) {
         generate_mask<cb_mask_in, PNHt>(k_num_chunks, Sk_chunk_t, cur_pos);
+        DPRINT << "WRITER 2" << ENDL();
         // cb_reserve_back(cb_mask_in, PNHt * Sk_chunk_t);
         // cb_push_back(cb_mask_in, PNHt * Sk_chunk_t);
     }
@@ -197,7 +201,9 @@ void kernel_main() {
 
         // Write entire out into its corresponding batch
         uint32_t out_tile_id = out_batch_offset;
+        DPRINT << "WRITER 3" << ENDL();
         cb_wait_front(cb_out, out_chunk_tiles);
+        DPRINT << "WRITER 4" << ENDL();
 
         if constexpr (num_kv_heads > 1) {
             // if gqa, we will need to write partial outputs for each head
@@ -278,4 +284,5 @@ void kernel_main() {
         noc_async_write_barrier();
         cb_pop_front(cb_out, out_chunk_tiles);
     }
+    DPRINT << "WRITER D" << ENDL();
 }

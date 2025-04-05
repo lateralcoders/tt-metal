@@ -19,7 +19,7 @@ void kernel_main() {
     constexpr uint32_t PNHt = get_compile_time_arg_val(1);        // padded number of heads in tiles
     constexpr uint32_t St = get_compile_time_arg_val(2);          // full sequence length of kv cache in tiles
     constexpr uint32_t DHt = get_compile_time_arg_val(3);         // head dim
-    constexpr uint32_t Sk_chunk_t = get_compile_time_arg_val(4);  // number of tiles in seqlen of a k/v/mask chunk
+    constexpr uint32_t Sk_chunk_t_ct = get_compile_time_arg_val(4);  // number of tiles in seqlen of a k/v/mask chunk
     constexpr uint32_t num_cores = get_compile_time_arg_val(5);
     constexpr bool is_q_sharded = get_compile_time_arg_val(6);
     constexpr uint32_t num_cores_per_batch = get_compile_time_arg_val(7);
@@ -84,15 +84,17 @@ void kernel_main() {
         }
     }
 
+    auto Sk_chunk_t = get_dynamic_Sk_chunk_t<Sk_chunk_t_ct>(cur_pos);
+    auto k_chunk_size_d = Sk_chunk_t * tt::constants::TILE_HEIGHT;
+    DPRINT << "READER: " << Sk_chunk_t << ENDL();
+
     // Sequence length assignment
     auto [PSt, k_num_chunks, k_chunk_start, k_chunk_end] =
-        get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size);
+        get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size_d);
 
     if (k_chunk_start == k_chunk_end) {
         return;  // early exit because no computes needs to be done
     }
-
-    auto Sk_chunk_t_d = get_dynamic_Sk_chunk_t<Sk_chunk_t>(cur_pos);
 
     tt_l1_ptr uint32_t* all_output_noc_x = (tt_l1_ptr uint32_t*)(get_arg_addr(arg_idx));
     arg_idx += num_output_cores;
@@ -102,8 +104,8 @@ void kernel_main() {
     uint32_t output_core_noc_y = all_output_noc_y[cur_batch];
 
     constexpr uint32_t q_chunk_tiles = PNHt * DHt;
-    uint32_t k_chunk_tiles = Sk_chunk_t_d * DHt;
-    uint32_t mask_chunk_tiles = PNHt * Sk_chunk_t_d;
+    uint32_t k_chunk_tiles = Sk_chunk_t * DHt;
+    uint32_t mask_chunk_tiles = PNHt * Sk_chunk_t;
 
     constexpr bool is_dram = true;
 
@@ -180,6 +182,7 @@ void kernel_main() {
         .bank_base_address = mask_addr, .page_size = mask_tile_bytes, .data_format = mask_data_format};
 
     volatile tt_l1_ptr uint32_t* page_table_ptr;
+    DPRINT << "READER: 1" << ENDL();
     if constexpr (is_paged_attention) {
         constexpr uint32_t cb_id_page_table = tt::CBIndex::c_9;
         const InterleavedAddrGen<true> page_table_gen = {
@@ -255,6 +258,7 @@ void kernel_main() {
                 noc_async_read_barrier();
                 cb_push_back(cb_v_in, k_chunk_tiles);
             }
+            DPRINT << "READER: 2" << ENDL();
 
         } else {
             // Offset for current batch
