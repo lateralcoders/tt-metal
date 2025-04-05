@@ -70,15 +70,8 @@ void max_block(uint32_t in0, uint32_t in1, uint32_t out_cb, uint32_t num_tiles) 
     cb_push_back(out_cb, num_tiles);
 }
 
-template <
-    PoolType pool_type,
-    ReduceDim reduce_dim,
-    uint32_t in0_cb,
-    uint32_t scale_cb,
-    uint32_t out_cb,
-    uint32_t rows,
-    uint32_t cols>
-void reduce_c() {
+template <PoolType pool_type, ReduceDim reduce_dim, uint32_t in0_cb, uint32_t scale_cb, uint32_t out_cb, uint32_t rows>
+void reduce_c(uint32_t cols) {
     // Precondition: in0_cb has rows*cols produced. in0_cb has tiles in row-major order
     // Precondition: scale_cb has 1 produced
     // Precondition: out_cb has rows free
@@ -141,8 +134,13 @@ void sub_exp_block_bcast_cols_inplace(uint32_t in0_cb, uint32_t in1_cb, uint32_t
     cb_wait_front(in1_cb, rows);
     DPRINT << "cols: " << cols << ENDL();
 
+#ifdef MUL_BCAST_GRANULARITY
     constexpr uint32_t dst_tiles = SUB_EXP_GRANULARITY;
-    uint32_t granularity = cols >> LOG2_SUB_EXP_GRANULARITY;
+    uint32_t granularity = cols >> LOG2_MUL_BCAST_GRANULARITY;
+#else
+    constexpr uint32_t dst_tiles = cols;
+    uint32_t granularity = 1;
+#endif
     for (uint32_t i = 0; i < rows; ++i) {
         for (uint32_t u = 0; u < granularity; u++) {
             tile_regs_acquire();
@@ -197,8 +195,14 @@ void mul_block_bcast_scalar_inplace(uint32_t in0_cb, uint32_t in1_scalar_cb, uin
     // Postcondition: in0_cb has num_tiles produced
     // Postcondition: in1_scalar_cb has 1 produced
 
+#ifdef MUL_BCAST_GRANULARITY
     constexpr uint32_t dst_tiles = MUL_BCAST_GRANULARITY;
     uint32_t granularity = num_tiles >> LOG2_MUL_BCAST_GRANULARITY;
+#else
+    constexpr uint32_t dst_tiles = num_tiles;
+    uint32_t granularity = 1;
+#endif
+
     reconfig_data_format(in0_cb, in1_scalar_cb);
     mul_tiles_bcast_scalar_init_short(in0_cb, in1_scalar_cb);
     cb_wait_front(in0_cb, num_tiles);
@@ -505,7 +509,7 @@ template <
     uint32_t St,
     uint32_t DHt,
     uint32_t Sq_chunk_t,
-    uint32_t Sk_chunk_t,
+    uint32_t Sk_chunk_t_ct,
     uint32_t qk_chunk_tiles_ct,
     uint32_t out_chunk_tiles,
     // QK matmul block parameters
@@ -547,20 +551,20 @@ void flash_attention_loop(
     // Runtime parameters
     uint32_t k_chunk_start,
     uint32_t k_chunk_end,
-    uint32_t Sk_chunk_t_d,
+    uint32_t Sk_chunk_t,
     bool do_reduce,
     bool apply_mask_at_last_chunk  // for causal mode, optionally apply mask at the last chunk
 ) {
-    uint32_t qk_chunk_tiles = Sq_chunk_t * Sk_chunk_t_d;
-    DPRINT << "RT args: " << Sk_chunk_t_d << ENDL();
+    uint32_t qk_chunk_tiles = Sq_chunk_t * Sk_chunk_t;
+    DPRINT << "RT args: " << Sk_chunk_t << ENDL();
 
-    uint32_t qk_subblock_w = Sk_chunk_t_d;
+    uint32_t qk_subblock_w = Sk_chunk_t;
     uint32_t qk_subblock_h = 1;  // Depends on PNHt
     uint32_t qk_in0_num_subblocks = 1;
     uint32_t qk_in1_num_subblocks = 1;
 
     // Output matmul block parameters
-    uint32_t out_in0_block_w = Sk_chunk_t_d;
+    uint32_t out_in0_block_w = Sk_chunk_t;
     uint32_t out_num_blocks = 1;
 
     for (uint32_t k_chunk = k_chunk_start; k_chunk < k_chunk_end; ++k_chunk) {
@@ -604,14 +608,8 @@ void flash_attention_loop(
         DPRINT << "4" << ENDL();
         reconfig_data_format(cb_qk_im, cb_identity_scale_in);
         pack_reconfig_data_format(cb_cur_max);
-        reduce_c<
-            PoolType::MAX,
-            ReduceDim::REDUCE_ROW,
-            cb_qk_im,
-            cb_identity_scale_in,
-            cb_cur_max,
-            Sq_chunk_t,
-            Sk_chunk_t>();
+        reduce_c<PoolType::MAX, ReduceDim::REDUCE_ROW, cb_qk_im, cb_identity_scale_in, cb_cur_max, Sq_chunk_t>(
+            Sk_chunk_t);
 
         DPRINT << "5" << ENDL();
         if (k_chunk > k_chunk_start) {
@@ -629,14 +627,8 @@ void flash_attention_loop(
         /* cb_cur_sum = sum(cb_qk_im, dim=-1) */
         reconfig_data_format(cb_qk_im, cb_identity_scale_in);
         pack_reconfig_data_format(cb_cur_sum);
-        reduce_c<
-            PoolType::SUM,
-            ReduceDim::REDUCE_ROW,
-            cb_qk_im,
-            cb_identity_scale_in,
-            cb_cur_sum,
-            Sq_chunk_t,
-            Sk_chunk_t>();
+        reduce_c<PoolType::SUM, ReduceDim::REDUCE_ROW, cb_qk_im, cb_identity_scale_in, cb_cur_sum, Sq_chunk_t>(
+            Sk_chunk_t);
         DPRINT << "8" << ENDL();
 
         /* OUT_IM = QK @ V_CHUNK */

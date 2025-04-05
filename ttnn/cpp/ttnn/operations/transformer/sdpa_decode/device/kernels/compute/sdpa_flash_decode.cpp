@@ -117,14 +117,14 @@ void MAIN {
         }
     }
 
-    auto Sk_chunk_t_d = get_dynamic_Sk_chunk_t<Sk_chunk_t>(cur_pos);
-
     // Sequence length assignment
     auto [PSt, k_num_chunks, k_chunk_start, k_chunk_end] =
         get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size);
     if (k_chunk_start == k_chunk_end) {
         return;  // early exit because no computes needs to be done
     }
+
+    auto Sk_chunk_t_d = get_dynamic_Sk_chunk_t<Sk_chunk_t>(cur_pos);
 
     uint32_t num_cores_to_wait = num_cores_per_head - 1;
     if (num_cores_per_head > k_num_chunks) {

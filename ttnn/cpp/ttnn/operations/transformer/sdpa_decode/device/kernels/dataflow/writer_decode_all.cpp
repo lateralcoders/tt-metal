@@ -74,6 +74,12 @@ void kernel_main() {
     auto [PSt, k_num_chunks, k_chunk_start, k_chunk_end] =
         get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size);
 
+    if (k_chunk_start == k_chunk_end) {
+        return;  // early exit because no computes needs to be done
+    }
+
+    auto Sk_chunk_t_d = get_dynamic_Sk_chunk_t<Sk_chunk_t>(cur_pos);
+
     tt_l1_ptr uint32_t* all_reducer_noc_x = (tt_l1_ptr uint32_t*)(get_arg_addr(arg_idx));
     arg_idx += num_reducer_cores;
     tt_l1_ptr uint32_t* all_reducer_noc_y = (tt_l1_ptr uint32_t*)(get_arg_addr(arg_idx));
@@ -88,10 +94,6 @@ void kernel_main() {
 
     const uint64_t in0_sender_semaphore_noc_addr =
         get_noc_addr(reduce_core_noc_x, reduce_core_noc_y, reducer_semaphore_addr);
-
-    if (k_chunk_start == k_chunk_end) {
-        return;  // early exit because no computes needs to be done
-    }
 
     constexpr uint32_t out_chunk_tiles = PNHt * DHt;
     uint32_t num_cores_to_wait = num_cores_per_head - 1;
@@ -145,7 +147,7 @@ void kernel_main() {
 
     // generate and send mask to compute if causal
     if constexpr (is_causal) {
-        generate_mask<cb_mask_in, PNHt, Sk_chunk_t>(k_num_chunks, cur_pos);
+        generate_mask<cb_mask_in, PNHt>(k_num_chunks, Sk_chunk_t, cur_pos);
         // cb_reserve_back(cb_mask_in, PNHt * Sk_chunk_t);
         // cb_push_back(cb_mask_in, PNHt * Sk_chunk_t);
     }

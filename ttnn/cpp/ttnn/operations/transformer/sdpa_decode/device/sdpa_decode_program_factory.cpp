@@ -319,13 +319,19 @@ operation::ProgramWithCallbacks sdpa_decode_multi_core(
     // Assert that this is a power of 2
     TT_FATAL(stats_granularity == (1 << log2_stats_granularity), "Error");
 
-    const uint32_t sub_exp_granularity = std::min(Sk_chunk_t, dst_size);
-    const uint32_t log2_sub_exp_granularity = std::log2(sub_exp_granularity);
-    TT_FATAL(sub_exp_granularity == (1 << log2_sub_exp_granularity), "Error");
+    uint32_t sub_exp_granularity = 0;
+    uint32_t log2_sub_exp_granularity = 0;
+    uint32_t mul_bcast_granularity = 0;
+    uint32_t log2_mul_bcast_granularity = 0;
+    if (Sk_chunk_t > 0) {
+        sub_exp_granularity = std::min(Sk_chunk_t, dst_size);
+        log2_sub_exp_granularity = std::log2(sub_exp_granularity);
+        TT_FATAL(sub_exp_granularity == (1 << log2_sub_exp_granularity), "Error");
 
-    const uint32_t mul_bcast_granularity = std::min(PNHt * Sk_chunk_t, dst_size);
-    const uint32_t log2_mul_bcast_granularity = std::log2(mul_bcast_granularity);
-    TT_FATAL(mul_bcast_granularity == (1 << log2_mul_bcast_granularity), "Error");
+        mul_bcast_granularity = std::min(PNHt * Sk_chunk_t, dst_size);
+        log2_mul_bcast_granularity = std::log2(mul_bcast_granularity);
+        TT_FATAL(mul_bcast_granularity == (1 << log2_mul_bcast_granularity), "Error");
+    }
 
     const uint32_t dht_granularity = std::min(DHt, dst_size);
     const uint32_t log2_dht_granularity = std::log2(dht_granularity);

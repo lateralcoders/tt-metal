@@ -88,6 +88,12 @@ void kernel_main() {
     auto [PSt, k_num_chunks, k_chunk_start, k_chunk_end] =
         get_runtime_args(cur_pos, cur_batch, core_num_in_reduce, num_cores_per_head, k_chunk_size);
 
+    if (k_chunk_start == k_chunk_end) {
+        return;  // early exit because no computes needs to be done
+    }
+
+    auto Sk_chunk_t_d = get_dynamic_Sk_chunk_t<Sk_chunk_t>(cur_pos);
+
     tt_l1_ptr uint32_t* all_output_noc_x = (tt_l1_ptr uint32_t*)(get_arg_addr(arg_idx));
     arg_idx += num_output_cores;
     tt_l1_ptr uint32_t* all_output_noc_y = (tt_l1_ptr uint32_t*)(get_arg_addr(arg_idx++));
@@ -95,13 +101,9 @@ void kernel_main() {
     uint32_t output_core_noc_x = all_output_noc_x[cur_batch];
     uint32_t output_core_noc_y = all_output_noc_y[cur_batch];
 
-    if (k_chunk_start == k_chunk_end) {
-        return;  // early exit because no computes needs to be done
-    }
-
     constexpr uint32_t q_chunk_tiles = PNHt * DHt;
-    constexpr uint32_t k_chunk_tiles = Sk_chunk_t * DHt;
-    constexpr uint32_t mask_chunk_tiles = PNHt * Sk_chunk_t;
+    uint32_t k_chunk_tiles = Sk_chunk_t_d * DHt;
+    uint32_t mask_chunk_tiles = PNHt * Sk_chunk_t_d;
 
     constexpr bool is_dram = true;
 
@@ -225,13 +227,8 @@ void kernel_main() {
                 cb_push_back(cb_k_in, k_chunk_tiles);
 
                 if constexpr (use_attention_mask) {
-                    mask_start_tile_id = read_mask_chunk<
-                        cb_mask_in,
-                        mask_chunk_tiles,
-                        mask_tile_bytes,
-                        barrier_threshold,
-                        PNHt,
-                        Sk_chunk_t>(PSt, mask_start_tile_id, mask_reader);
+                    mask_start_tile_id = read_mask_chunk<cb_mask_in, mask_tile_bytes, barrier_threshold, PNHt>(
+                        PSt, Sk_chunk_t, mask_chunk_tiles, mask_start_tile_id, mask_reader);
                 }
 
                 // Read V chunk in row major order, write in row-major order
@@ -274,10 +271,7 @@ void kernel_main() {
 
             read_kv_mask_chunks<
                 DHt,
-                Sk_chunk_t,
                 barrier_threshold,
-                k_chunk_tiles,
-                mask_chunk_tiles,
                 mask_tile_bytes,
                 PNHt,
                 use_attention_mask,
@@ -289,6 +283,9 @@ void kernel_main() {
                 k_start_tile_id,
                 v_start_tile_id,
                 mask_start_tile_id,
+                Sk_chunk_t,
+                k_chunk_tiles,
+                mask_chunk_tiles,
                 k_reader,
                 v_reader,
                 mask_reader,
