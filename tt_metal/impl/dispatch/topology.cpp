@@ -925,17 +925,19 @@ std::unique_ptr<Program> create_and_compile_2d_fabric_program(IDevice* device, F
     std::uint32_t router_mask = 0;
     auto control_plane = tt::tt_metal::MetalContext::instance().get_cluster().get_control_plane();
 
-    auto router_chans = tt::tt_metal::MetalContext::instance().get_cluster().get_fabric_ethernet_channels(device->id());
-    if (router_chans.empty()) {
+    auto [mesh_id, chip_id] = control_plane->get_mesh_chip_id_from_physical_chip_id(device->id());
+
+    auto router_chans_and_direction = control_plane->get_active_fabric_eth_channels(mesh_id, chip_id);
+    if (router_chans_and_direction.empty()) {
         return nullptr;
     }
 
     fabric_program_ptr = std::make_unique<Program>();
-    size_t num_routers = router_chans.size();
-    for (const auto& router_chan : router_chans) {
-        router_mask += 0x1 << (uint32_t)router_chan;
+    size_t num_routers = router_chans_and_direction.size();
+    for (const auto& router_chan : router_chans_and_direction) {
+        router_mask += 0x1 << (uint32_t)router_chan.first;
     }
-    auto master_router_chan = (uint32_t)(*router_chans.begin());
+    auto master_router_chan = (uint32_t)(*router_chans_and_direction.begin()).first;
     // setup runtime args
     std::vector<uint32_t> router_runtime_args = {
         num_routers,         // 0: number of active fabric routers
@@ -966,18 +968,18 @@ std::unique_ptr<Program> create_and_compile_2d_fabric_program(IDevice* device, F
     // TODO: Manual clear of semaphore, move this to proper Metal sempahore apis
     std::vector<uint32_t> fabric_sem_zero_buf(1, 0);
 
-    for (const auto& router_chan : router_chans) {
+    for (const auto& router_chan : router_chans_and_direction) {
         CoreCoord virtual_eth_core =
             tt::tt_metal::MetalContext::instance().get_cluster().get_virtual_eth_core_from_channel(
-                device->id(), router_chan);
+                device->id(), router_chan.first);
         auto router_logical_core = device->logical_core_from_ethernet_core(virtual_eth_core);
-        if (master_router_chan == router_chan) {
+        if (master_router_chan == router_chan.first) {
             router_compile_args[4] = 1;
         } else {
             router_compile_args[4] = 0;
         }
         auto [mesh_id, chip_id] = control_plane->get_mesh_chip_id_from_physical_chip_id(device->id());
-        uint32_t direction = control_plane->get_eth_chan_direction(mesh_id, chip_id, router_chan);
+        uint32_t direction = router_chan.second;
         router_compile_args[5] = direction;
         auto kernel = tt_metal::CreateKernel(
             *fabric_program_ptr,
