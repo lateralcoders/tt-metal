@@ -12,6 +12,10 @@ on:
       wheel-artifact-name:
         required: true
         type: string
+      extra-tag:
+        required: false
+        type: string
+        default: "in-service"
 
 jobs:
   TG-UMD-tests:
@@ -22,7 +26,7 @@ jobs:
           {
             name: "TG UMD unit tests",
             arch: wormhole_b0,
-            runs-on: ["arch-wormhole_b0", "config-tg", "in-service", "bare-metal", "pipeline-functional"],
+            runs-on: ["arch-wormhole_b0", "config-tg", "${{ inputs.extra-tag }}", "bare-metal", "pipeline-functional"],
             cmd: "./build/test/umd/galaxy/unit_tests_glx"
           },  # Bojan Roško
         ]
@@ -36,7 +40,7 @@ jobs:
       volumes:
         - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
         - /dev/hugepages-1G:/dev/hugepages-1G
-        - /mnt/MLPerf:/mnt/MLPerf
+        - /mnt/MLPerf:/mnt/MLPerf:ro
       options: "--device /dev/tenstorrent"
     defaults:
       run:
@@ -78,9 +82,9 @@ jobs:
     runs-on:
       - arch-wormhole_b0
       - config-tg
-      - in-service
       - bare-metal
       - pipeline-functional
+      - ${{ inputs.extra-tag }}
     container:
       image: ${{ inputs.docker-image }}
       env:
@@ -93,7 +97,7 @@ jobs:
       volumes:
         - ${{ github.workspace }}/docker-job:/work # Subdir to workaround https://github.com/actions/runner/issues/691
         - /dev/hugepages-1G:/dev/hugepages-1G
-        - /mnt/MLPerf:/mnt/MLPerf
+        - /mnt/MLPerf:/mnt/MLPerf:ro
       options: "--device /dev/tenstorrent"
     defaults:
       run:
