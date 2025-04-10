@@ -12,19 +12,35 @@ using namespace tt::tt_metal;
 int main(int argc, char** argv) {
     // Initialize Program and Device
 
-    constexpr CoreCoord core = {0, 0};
+    constexpr CoreCoord core1 = {0, 0};
+    constexpr CoreCoord core2 = {0, 1};
     int device_id = 0;
+    std::cout << "1" << std::endl;
     IDevice* device = CreateDevice(device_id);
+    std::cout << "2" << std::endl;
     CommandQueue& cq = device->command_queue();
+    std::cout << "3" << std::endl;
     Program program = CreateProgram();
 
     // Configure and Create Void Kernel
 
+    std::cout << "4" << std::endl;
     std::vector<uint32_t> compute_kernel_args = {};
-    KernelHandle void_compute_kernel_id = CreateKernel(
+    KernelHandle void_compute_kernel_id_1 = CreateKernel(
         program,
         "tt_metal/programming_examples/hello_world_compute_kernel/kernels/compute/void_compute_kernel.cpp",
-        core,
+        core1,
+        ComputeConfig{
+            .math_fidelity = MathFidelity::HiFi4,
+            .fp32_dest_acc_en = false,
+            .math_approx_mode = false,
+            .compile_args = compute_kernel_args,
+            .opt_level = KernelBuildOptLevel::O3});
+
+    KernelHandle void_compute_kernel_id_2 = CreateKernel(
+        program,
+        "tt_metal/programming_examples/hello_world_compute_kernel/kernels/compute/void_compute_kernel.cpp",
+        core1,
         ComputeConfig{
             .math_fidelity = MathFidelity::HiFi4,
             .fp32_dest_acc_en = false,
@@ -34,7 +50,8 @@ int main(int argc, char** argv) {
 
     // Configure Program and Start Program Execution on Device
 
-    SetRuntimeArgs(program, void_compute_kernel_id, core, {});
+    SetRuntimeArgs(program, void_compute_kernel_id_1, core1, {});
+    SetRuntimeArgs(program, void_compute_kernel_id_2, core2, {});
     EnqueueProgram(cq, program, false);
     printf("Hello, Core {0, 0} on Device 0, I am sending you a compute kernel. Standby awaiting communication.\n");
 
