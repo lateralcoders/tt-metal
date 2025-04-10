@@ -1021,12 +1021,6 @@ KernelHandle CreateKernel(
     KernelHandle kernel = std::visit(
         [&](auto&& cfg) -> KernelHandle {
             CoreRangeSet core_ranges = GetCoreRangeSet(core_spec);
-            std::cout << "Kernel Creation " << file_name;
-            for (CoreRange range : core_ranges.ranges()) {
-                std::cout << range.str() << " ";
-            }
-            std::cout << std::endl;
-
             KernelSource kernel_src(file_name, KernelSource::FILE_PATH);
             using T = std::decay_t<decltype(cfg)>;
             if constexpr (std::is_same_v<T, DataMovementConfig>) {

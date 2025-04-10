@@ -155,11 +155,12 @@ class Kernel : public JitBuildSettings {
 
 class DataMovementKernel : public Kernel {
    public:
-    DataMovementKernel(const KernelSource &kernel_src, const CoreRangeSet &cr_set, const DataMovementConfig &config) :
-        Kernel(kernel_src, cr_set, config.compile_args, config.defines), config_(config) {
-        std::cout << "Data Movement Kernel" << std::endl;
-        this->dispatch_class_ = magic_enum::enum_integer(HalProcessorClassType::DM) + magic_enum::enum_integer(config.processor);
-    }
+       DataMovementKernel(
+           const KernelSource& kernel_src, const CoreRangeSet& cr_set, const DataMovementConfig& config) :
+           Kernel(kernel_src, cr_set, config.compile_args, config.defines), config_(config) {
+           this->dispatch_class_ =
+               magic_enum::enum_integer(HalProcessorClassType::DM) + magic_enum::enum_integer(config.processor);
+       }
 
     ~DataMovementKernel() {}
 
@@ -189,11 +190,11 @@ private:
 
 class EthernetKernel : public Kernel {
    public:
-    EthernetKernel(const KernelSource &kernel_src, const CoreRangeSet &cr_set, const EthernetConfig &config) :
-        Kernel(kernel_src, cr_set, config.compile_args, config.defines), config_(config) {
-        std::cout << "Ethernet Kernel" << std::endl;
-        this->dispatch_class_ = magic_enum::enum_integer(HalProcessorClassType::DM) + magic_enum::enum_integer(config.processor);
-    }
+       EthernetKernel(const KernelSource& kernel_src, const CoreRangeSet& cr_set, const EthernetConfig& config) :
+           Kernel(kernel_src, cr_set, config.compile_args, config.defines), config_(config) {
+           this->dispatch_class_ =
+               magic_enum::enum_integer(HalProcessorClassType::DM) + magic_enum::enum_integer(config.processor);
+       }
 
     ~EthernetKernel() {}
 
@@ -223,11 +224,10 @@ private:
 
 class ComputeKernel : public Kernel {
    public:
-    ComputeKernel(const KernelSource &kernel_src, const CoreRangeSet &cr_set, const ComputeConfig &config) :
-        Kernel(kernel_src, cr_set, config.compile_args, config.defines), config_(config) {
-        std::cout << "Compute Kernel" << std::endl;
-        this->dispatch_class_ = magic_enum::enum_integer(HalProcessorClassType::COMPUTE);
-    }
+       ComputeKernel(const KernelSource& kernel_src, const CoreRangeSet& cr_set, const ComputeConfig& config) :
+           Kernel(kernel_src, cr_set, config.compile_args, config.defines), config_(config) {
+           this->dispatch_class_ = magic_enum::enum_integer(HalProcessorClassType::COMPUTE);
+       }
 
     ~ComputeKernel() {}
 

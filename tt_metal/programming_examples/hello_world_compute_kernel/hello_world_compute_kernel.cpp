@@ -15,16 +15,12 @@ int main(int argc, char** argv) {
     constexpr CoreCoord core1 = {0, 0};
     constexpr CoreCoord core2 = {0, 1};
     int device_id = 0;
-    std::cout << "1" << std::endl;
     IDevice* device = CreateDevice(device_id);
-    std::cout << "2" << std::endl;
     CommandQueue& cq = device->command_queue();
-    std::cout << "3" << std::endl;
     Program program = CreateProgram();
 
     // Configure and Create Void Kernel
 
-    std::cout << "4" << std::endl;
     std::vector<uint32_t> compute_kernel_args = {};
     KernelHandle void_compute_kernel_id_1 = CreateKernel(
         program,
