@@ -338,15 +338,21 @@ KernelHandle detail::Program_::add_kernel(const std::shared_ptr<Kernel>& kernel,
     // Id is unique across all kernels on all core types
     KernelHandle id = this->num_kernels();
     uint32_t index = hal_ref.get_programmable_core_type_index(programmable_core_type);
+
+    RISCV new_kernel_type = kernel->processor();
+    std::cout << "New Kernel is type " << kernel->processor() << std::endl;
     std::set<CoreCoord> kernel_logical_cores = kernel->logical_cores();
+
     for (size_t i = 0; i < this->num_kernels(); i++) {
         // Note, looks like id is program specific, and increments naturally as kernels are added.
         //  add_kernel -> id = num_kernels -> kernel is inserted -> next num_kernels() increments.
         std::shared_ptr<Kernel> check_kernel = this->get_kernel(i);
+        RISCV check_kernel_type = check_kernel->processor();
         std::set<CoreCoord> check_kernel_logical_cores = check_kernel->logical_cores();
         for (CoreCoord coreCoord : kernel_logical_cores) {
             // std::cout << "Kernel Uses Logical Cores: " << coreCoord.str() << std::endl;
-            if (check_kernel_logical_cores.find(coreCoord) != check_kernel_logical_cores.end()) {
+            if (check_kernel_logical_cores.find(coreCoord) != check_kernel_logical_cores.end() &&
+                new_kernel_type == check_kernel_type) {
                 std::cout << "Core Overlap Between " << check_kernel->name() << " and new kernel (" << kernel->name()
                           << ") at " << coreCoord.str() << std::endl;
             }
