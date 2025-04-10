@@ -164,6 +164,10 @@ class Program_ {
    private:
        CommandQueue* last_used_command_queue_for_testing = nullptr;
 
+       // List of core regions used by kernels
+       std::vector<CoreRangeSet> used_core_ranges;
+       bool is_core_range_used(const CoreRangeSet& check_range);
+
        // Buffers temporarily owned by the program
        std::vector<std::shared_ptr<Buffer>> owned_buffer_pool = {};
 
@@ -315,7 +319,8 @@ detail::Program_::Program_() :
     runtime_id(0),
     local_circular_buffer_allocation_needed_(false),
     finalized_(false),
-    cached_(false) {
+    cached_(false),
+    used_core_ranges() {
     uint32_t programmable_core_count = hal_ref.get_programmable_core_type_count();
     for (uint32_t i = 0; i < programmable_core_count; i++) {
         kernels_.push_back({});
@@ -333,11 +338,35 @@ Program::Program() : pimpl_(std::make_unique<detail::Program_>()) {
     LIGHT_METAL_TRACE_FUNCTION_CALL(CaptureProgramConstructor, *this);
 }
 
+bool detail::Program_::is_core_range_used(const CoreRangeSet& check_range) {
+    std::cout << "Range Check call" << std::endl;
+    for (CoreRangeSet range : this->used_core_ranges) {
+        std::cout << "Checking Range " << range.intersects(check_range) << " " << range.contains(check_range)
+                  << std::endl;
+        if (range.intersects(check_range)) {
+            std::cout << "Intersects!" << std::endl;
+            return true;
+        }
+    }
+    return false;
+}
+
 KernelHandle detail::Program_::add_kernel(const std::shared_ptr<Kernel>& kernel, const HalProgrammableCoreType &programmable_core_type) {
     TT_FATAL(this->compiled_.empty(), "Cannot add kernel to an already compiled program {}", this->id);
     // Id is unique across all kernels on all core types
     KernelHandle id = this->num_kernels();
     uint32_t index = hal_ref.get_programmable_core_type_index(programmable_core_type);
+    std::set<CoreCoord> kernel_local_cores = kernel->logical_cores();
+    for (CoreCoord coreCoord : kernel_local_cores) {
+        std::cout << "Kernel Uses Logical Cores: " << coreCoord.str() << std::endl;
+    }
+
+    if (is_core_range_used(kernel->core_range_set())) {
+        std::cout << "Should fail!" << std::endl;
+        std::runtime_error("Duplicate Core!");
+    }
+    this->used_core_ranges.push_back(kernel->core_range_set());
+
     kernels_[index].insert({id, kernel});
     kernel_groups_[index].resize(0);
     core_to_kernel_group_index_table_[index].clear();
